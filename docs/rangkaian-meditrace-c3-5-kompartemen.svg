@@ -1,0 +1,123 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1250" viewBox="0 0 1600 1250" role="img" aria-labelledby="title desc">
+  <title id="title">Rangkaian MEDITRACE ESP32-C3 dengan PCF8575TS dan lima kompartemen</title>
+  <desc id="desc">Peta sambungan daya, I2C, sakelar MOSFET pemancar IR, buzzer, lima pasangan break-beam dan lima reed switch. RTC diasumsikan DS3231 dan perlu diverifikasi.</desc>
+  <defs>
+    <style>
+      text { font-family: Arial, sans-serif; fill: #183039; }
+      .title { font-size: 35px; font-weight: 700; }
+      .subtitle { font-size: 19px; }
+      .section { font-size: 23px; font-weight: 700; }
+      .boxTitle { font-size: 22px; font-weight: 700; }
+      .body { font-size: 18px; }
+      .small { font-size: 15px; }
+      .tableHead { font-size: 19px; font-weight: 700; }
+      .wire { fill: none; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
+      .power { stroke: #d76a18; }
+      .logic { stroke: #147d72; }
+      .ground { stroke: #4e5965; }
+      .signal { stroke: #536bc6; }
+      .control { stroke: #a04db6; }
+    </style>
+    <marker id="arrowPower" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0 L10 5 L0 10Z" fill="#d76a18"/></marker>
+    <marker id="arrowLogic" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0 L10 5 L0 10Z" fill="#147d72"/></marker>
+    <marker id="arrowSignal" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0 L10 5 L0 10Z" fill="#536bc6"/></marker>
+    <marker id="arrowControl" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0 L10 5 L0 10Z" fill="#a04db6"/></marker>
+  </defs>
+
+  <rect width="1600" height="1250" fill="#f5faf8"/>
+  <text x="60" y="68" class="title">MEDITRACE · Rangkaian 5 kompartemen</text>
+  <text x="60" y="101" class="subtitle">Peta sambungan untuk firmware ESP32-C3 saat ini · PCF8575TS · RTC harus dipastikan DS3231</text>
+
+  <text x="60" y="150" class="section">1. Daya (semua GND wajib tersambung bersama)</text>
+  <rect x="60" y="177" width="220" height="112" rx="14" fill="#fff1e4" stroke="#d76a18" stroke-width="2"/>
+  <text x="80" y="213" class="boxTitle">LiPo 3,7 V</text>
+  <text x="80" y="244" class="body">B+ / B−</text>
+  <text x="80" y="270" class="small">Jangan isi langsung dari 5 V</text>
+
+  <rect x="353" y="177" width="234" height="112" rx="14" fill="#fff1e4" stroke="#d76a18" stroke-width="2"/>
+  <text x="372" y="213" class="boxTitle">Charger + proteksi</text>
+  <text x="372" y="244" class="body">OUT+ / OUT−</text>
+  <text x="372" y="270" class="small">USB 5 V untuk mengisi</text>
+
+  <rect x="665" y="177" width="216" height="112" rx="14" fill="#fff1e4" stroke="#d76a18" stroke-width="2"/>
+  <text x="685" y="213" class="boxTitle">Sakelar → boost</text>
+  <text x="685" y="244" class="body">keluaran tetap 5 V</text>
+  <text x="685" y="270" class="small">ukur sebelum dipasang</text>
+
+  <rect x="959" y="177" width="225" height="112" rx="14" fill="#fff1e4" stroke="#d76a18" stroke-width="2"/>
+  <text x="978" y="213" class="boxTitle">ESP32-C3 board</text>
+  <text x="978" y="244" class="body">5 V → VIN / 5V*</text>
+  <text x="978" y="270" class="small">GND → GND bersama</text>
+
+  <rect x="1260" y="177" width="280" height="112" rx="14" fill="#e8f6f2" stroke="#147d72" stroke-width="2"/>
+  <text x="1279" y="213" class="boxTitle">Regulator 3,3 V</text>
+  <text x="1279" y="244" class="body">PCF + DS3231 + penerima</text>
+  <text x="1279" y="270" class="small">jangan masukkan 5 V ke 3V3</text>
+
+  <path class="wire power" d="M280 232 H345" marker-end="url(#arrowPower)"/>
+  <path class="wire power" d="M587 232 H657" marker-end="url(#arrowPower)"/>
+  <path class="wire power" d="M881 213 H951" marker-end="url(#arrowPower)"/>
+  <path class="wire power" d="M881 255 H902 V300 H1230 V232 H1252" marker-end="url(#arrowPower)"/>
+  <text x="1195" y="296" class="small">5 V</text>
+  <rect x="60" y="312" width="1480" height="40" rx="8" fill="#e9ecee"/>
+  <text x="78" y="338" class="body">GND beban = OUT− charger, boost, ESP, regulator, sensor, buzzer. B− baterai hanya ke B− charger; jangan jumper B− ke OUT−.</text>
+
+  <text x="60" y="403" class="section">2. Bus I²C dan kontrol ESP32-C3</text>
+  <rect x="60" y="430" width="365" height="240" rx="14" fill="#eef1ff" stroke="#536bc6" stroke-width="2"/>
+  <text x="82" y="466" class="boxTitle">ESP32-C3 · GPIO</text>
+  <text x="82" y="502" class="body">GPIO5  → SDA</text>
+  <text x="82" y="533" class="body">GPIO6  → SCL</text>
+  <text x="82" y="564" class="body">GPIO4  ← INT (opsional)</text>
+  <text x="82" y="595" class="body">GPIO7  → driver sakelar IR</text>
+  <text x="82" y="626" class="body">GPIO3  → transistor buzzer</text>
+  <text x="82" y="650" class="small">GPIO8: LED bawaan/opsional; cek board</text>
+
+  <rect x="588" y="430" width="340" height="240" rx="14" fill="#e8f6f2" stroke="#147d72" stroke-width="2"/>
+  <text x="611" y="466" class="boxTitle">PCF8575TS · alamat 0x20</text>
+  <text x="611" y="502" class="body">VDD 3,3 V · GND</text>
+  <text x="611" y="533" class="body">SDA · SCL</text>
+  <text x="611" y="564" class="body">A0, A1, A2 → GND</text>
+  <text x="611" y="595" class="body">P00–P04 ← 5 keluaran IR</text>
+  <text x="611" y="626" class="body">P10–P14 ← 5 reed</text>
+  <text x="611" y="651" class="small">P05 dan P15 belum dipakai</text>
+
+  <rect x="1080" y="430" width="460" height="156" rx="14" fill="#e8f6f2" stroke="#147d72" stroke-width="2"/>
+  <text x="1102" y="466" class="boxTitle">Tiny RTC — jika chip DS3231</text>
+  <text x="1102" y="502" class="body">VCC 3,3 V · GND</text>
+  <text x="1102" y="533" class="body">SDA ke GPIO5 · SCL ke GPIO6</text>
+  <text x="1102" y="562" class="small">Jika chip DS1307: jangan ikuti sambungan ini.</text>
+
+  <path class="wire signal" d="M425 497 H580" marker-end="url(#arrowSignal)"/>
+  <path class="wire signal" d="M425 528 H557 V529 H580" marker-end="url(#arrowSignal)"/>
+  <path class="wire signal" d="M928 515 H1072" marker-end="url(#arrowSignal)"/>
+  <text x="955" y="498" class="small">SDA/SCL</text>
+  <text x="948" y="541" class="small">pull-up 3,3 V</text>
+
+  <rect x="1080" y="602" width="460" height="151" rx="14" fill="#f9edf9" stroke="#a04db6" stroke-width="2"/>
+  <text x="1102" y="638" class="boxTitle">Kendali pemancar &amp; buzzer</text>
+  <text x="1102" y="670" class="body">GPIO7 → NPN → gate MOSFET-P</text>
+  <text x="1102" y="699" class="body">Drain MOSFET → 5 pemancar IR</text>
+  <text x="1102" y="728" class="body">GPIO3 → R 1 kΩ → basis NPN → buzzer</text>
+  <path class="wire control" d="M425 590 H502 V692 H1072" marker-end="url(#arrowControl)"/>
+
+  <text x="60" y="802" class="section">3. Lima kompartemen identik</text>
+  <rect x="60" y="824" width="1480" height="315" rx="14" fill="white" stroke="#c9d8d4" stroke-width="2"/>
+  <rect x="60" y="824" width="1480" height="52" rx="14" fill="#dcefe9"/>
+  <text x="83" y="858" class="tableHead">Ruang</text>
+  <text x="242" y="858" class="tableHead">Pemancar break-beam</text>
+  <text x="635" y="858" class="tableHead">Penerima break-beam</text>
+  <text x="1125" y="858" class="tableHead">Reed pintu</text>
+  <path d="M205 824 V1139 M600 824 V1139 M1090 824 V1139" stroke="#c9d8d4" stroke-width="2"/>
+  <path d="M60 876 H1540 M60 928 H1540 M60 980 H1540 M60 1032 H1540 M60 1084 H1540" stroke="#dce8e4" stroke-width="2"/>
+
+  <g class="body">
+    <text x="90" y="910">1</text><text x="242" y="910">V+ dari MOSFET-P · GND</text><text x="635" y="910">3,3 V · GND · OUT → P00</text><text x="1125" y="910">P10 ↔ GND</text>
+    <text x="90" y="962">2</text><text x="242" y="962">V+ dari MOSFET-P · GND</text><text x="635" y="962">3,3 V · GND · OUT → P01</text><text x="1125" y="962">P11 ↔ GND</text>
+    <text x="90" y="1014">3</text><text x="242" y="1014">V+ dari MOSFET-P · GND</text><text x="635" y="1014">3,3 V · GND · OUT → P02</text><text x="1125" y="1014">P12 ↔ GND</text>
+    <text x="90" y="1066">4</text><text x="242" y="1066">V+ dari MOSFET-P · GND</text><text x="635" y="1066">3,3 V · GND · OUT → P03</text><text x="1125" y="1066">P13 ↔ GND</text>
+    <text x="90" y="1118">5</text><text x="242" y="1118">V+ dari MOSFET-P · GND</text><text x="635" y="1118">3,3 V · GND · OUT → P04</text><text x="1125" y="1118">P14 ↔ GND</text>
+  </g>
+  <rect x="60" y="1161" width="1480" height="62" rx="10" fill="#fff0d8" stroke="#e5ba72"/>
+  <text x="78" y="1187" class="small">PENTING: verifikasi tulisan chip RTC dan spesifikasi modul IR. Modul IR 5 V atau keluaran 5 V memerlukan adaptasi level, bukan langsung ke PCF 3,3 V.</text>
+  <text x="78" y="1210" class="small">Lihat gambar sakelar MOSFET terpisah untuk detail GPIO7. Diagram ini menunjukkan koneksi fungsional, bukan nomor kaki fisik PCB.</text>
+</svg>

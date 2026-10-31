@@ -1,0 +1,4 @@
+# Salin sebagai .dev.vars untuk wrangler dev. Jangan commit file .dev.vars.
+FIREBASE_PROJECT_ID=meditrace-84207
+FIREBASE_SERVICE_ACCOUNT='{"type":"service_account","project_id":"..."}'
+RESEND_API_KEY=re_...

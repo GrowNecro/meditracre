@@ -1,0 +1,56 @@
+# Operating system and editor files
+.DS_Store
+Thumbs.db
+.vscode/
+
+# Flutter/Dart generated files
+**/.dart_tool/
+**/build/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/.packages
+**/coverage/
+**/*.iml
+
+# Android/Gradle generated files
+.gradle-cache/
+**/.gradle/
+**/android/.gradle/
+**/.kotlin/
+**/android/local.properties
+**/android/app/debug/
+**/android/app/profile/
+**/android/app/release/
+
+# PlatformIO generated files
+**/.pio/
+**/.sconsign*.dblite
+**/compile_commands.json
+
+# Node.js generated files
+**/node_modules/
+**/.wrangler/
+**/npm-debug.log*
+**/hs_err_pid*.log
+**/ephemeral/
+
+# Local environment and credentials
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+google-services.json
+**/google-services.json
+*-firebase-adminsdk-*.json
+**/*-firebase-adminsdk-*.json
+**/*service-account*.json
+
+# Local build/upload artifacts
+*.zip
+*.apk
+*.aab
+*.bin
+*.elf
+*.map

@@ -1,0 +1,14 @@
+name = "meditrace"
+main = "worker.js"
+compatibility_date = "2025-10-01"
+
+# Domain https://meditrace.grownecro.tech sudah diatur pada Worker di Dashboard.
+# Route sengaja tidak ditulis di sini agar deploy pertama lewat Wrangler tidak
+# mengubah konfigurasi domain yang sedang aktif.
+
+[vars]
+EMAIL_FROM = "MEDITRACE <noreply@meditrace.grownecro.tech>"
+
+[observability]
+logs = { enabled = true, head_sampling_rate = 1, invocation_logs = true, persist = true }
+

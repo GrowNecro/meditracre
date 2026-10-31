@@ -1,0 +1,31 @@
+# Protokol BLE MEDITRACE v0.1
+
+Service: `7d2ea28a-f7bd-485a-bd9d-92ad6ecfe001`
+
+| Characteristic | UUID akhir | Arah | Properti |
+| --- | --- | --- | --- |
+| Device Info | `e002` | ESP32 → Flutter | Read |
+| Command | `e003` | Flutter → ESP32 | Write |
+| Status | `e004` | ESP32 → Flutter | Read, Notify |
+| Config | `e005` | dua arah | Read, Write |
+| Event | `e006` | ESP32 → Flutter | Notify |
+
+Semua payload memakai UTF-8. Command yang tersedia: `PING`, `GET_STATUS`,
+`LED_ON`, `LED_OFF`, `BUZZER_ON`, `BUZZER_OFF`, `SYNC_TIME:<unix>`,
+`GET_SENSOR`, `SET_SCHEDULE`, `GET_PENDING_EVENTS`, `CLEAR_SYNCED_EVENTS`, dan
+`RESET`. Command juga dapat dibungkus JSON dengan field `command`.
+
+Contoh konfigurasi jadwal melalui CONFIG characteristic:
+
+```json
+{"schedule":["08:00","13:00","20:00"]}
+```
+
+`GET_STATUS` menghasilkan status baterai, RTC, alarm, dan jumlah event pending.
+
+```json
+{"battery":82,"rtc":true,"alarm":false,"pending":0}
+```
+
+Device Info menghasilkan JSON dengan `device_id`, `device_name`, `firmware`, dan
+`battery`. Payload CONFIG dan event sensor dipersistenkan melalui NVS.

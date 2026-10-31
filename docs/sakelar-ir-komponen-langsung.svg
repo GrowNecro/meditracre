@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="820" viewBox="0 0 1400 820" role="img" aria-labelledby="title desc">
+  <title id="title">Wiring sakelar lima pemancar IR MEDITRACE dengan komponen langsung</title>
+  <desc id="desc">GPIO7 ESP32-C3 melalui resistor 10 kiloohm ke basis transistor NPN 2N3904. Basis ditarik ke ground melalui 100 kiloohm. Kolektor menarik gate MOSFET P-channel AO3401A ke ground. Gate ditarik ke sumber 3,3 volt melalui 100 kiloohm. Source ke 3,3 volt, drain ke V plus lima pemancar IR, semua ground bersama.</desc>
+  <defs>
+    <style>
+      text { font-family: Arial, sans-serif; fill: #17313b; }
+      .title { font-size: 34px; font-weight: 700; }
+      .sub { font-size: 19px; }
+      .label { font-size: 20px; font-weight: 700; }
+      .body { font-size: 18px; }
+      .small { font-size: 16px; }
+      .wire { fill: none; stroke: #324b56; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
+      .power { stroke: #d66621; }
+      .signal { stroke: #4564bd; }
+      .ground { stroke: #46565e; }
+      .dot { fill: #324b56; }
+    </style>
+  </defs>
+  <rect width="1400" height="820" fill="#f5faf8"/>
+  <text x="55" y="66" class="title">MEDITRACE · Sakelar IR dari komponen langsung</text>
+  <text x="55" y="101" class="sub">Pengganti modul load switch · GPIO7 HIGH = 5 pemancar IR ON · GPIO7 LOW = OFF</text>
+
+  <rect x="55" y="137" width="1290" height="494" rx="20" fill="white" stroke="#cbdad5" stroke-width="2"/>
+
+  <!-- 3.3 V supply and P-MOSFET source -->
+  <path class="wire power" d="M580 188 H1190"/>
+  <circle cx="678" cy="188" r="7" class="dot"/>
+  <circle cx="862" cy="188" r="7" class="dot"/>
+  <text x="1025" y="177" class="label" fill="#c45e1e">+3,3 V regulator</text>
+  <path class="wire power" d="M862 188 V272"/>
+  <rect x="777" y="272" width="170" height="105" rx="12" fill="#fff0e2" stroke="#d66621" stroke-width="3"/>
+  <text x="796" y="305" class="label">AO3401A</text>
+  <text x="810" y="332" class="small">MOSFET-P</text>
+  <text x="851" y="266" class="small">S</text>
+  <text x="758" y="330" class="small">G</text>
+  <text x="851" y="401" class="small">D</text>
+
+  <!-- PMOS drain to emitter bank -->
+  <path class="wire power" d="M862 377 V461 H1078"/>
+  <rect x="1078" y="415" width="232" height="115" rx="14" fill="#fff0e2" stroke="#d66621" stroke-width="2"/>
+  <text x="1095" y="447" class="label">Pemancar IR 1–5</text>
+  <text x="1095" y="476" class="body">V+ semua → drain</text>
+  <text x="1095" y="504" class="body">GND → GND bersama</text>
+
+  <!-- Gate with source pull-up -->
+  <path class="wire" d="M678 188 V227"/>
+  <rect x="653" y="227" width="50" height="62" rx="6" fill="#e7f3ef" stroke="#347e71" stroke-width="2"/>
+  <text x="594" y="260" class="body">100 kΩ</text>
+  <path class="wire" d="M678 289 V325 H777"/>
+  <circle cx="678" cy="325" r="7" class="dot"/>
+  <text x="558" y="312" class="small">pull-up gate: OFF saat boot</text>
+
+  <!-- NPN collector, base and emitter -->
+  <path class="wire" d="M678 325 V449"/>
+  <rect x="603" y="449" width="150" height="130" rx="12" fill="#eef1ff" stroke="#4564bd" stroke-width="3"/>
+  <text x="625" y="480" class="label">2N3904</text>
+  <text x="623" y="508" class="small">NPN</text>
+  <text x="663" y="444" class="small">C</text>
+  <text x="588" y="535" class="small">B</text>
+  <text x="665" y="598" class="small">E</text>
+  <path class="wire ground" d="M678 579 V610"/>
+
+  <!-- GPIO7 to base with 10k and pulldown -->
+  <rect x="89" y="490" width="167" height="75" rx="13" fill="#eef1ff" stroke="#4564bd" stroke-width="2"/>
+  <text x="107" y="522" class="label">ESP32-C3</text>
+  <text x="127" y="550" class="body">GPIO7</text>
+  <path class="wire signal" d="M256 529 H327"/>
+  <rect x="327" y="507" width="107" height="44" rx="7" fill="#eef1ff" stroke="#4564bd" stroke-width="2"/>
+  <text x="344" y="536" class="body">10 kΩ</text>
+  <path class="wire signal" d="M434 529 H603"/>
+  <circle cx="514" cy="529" r="7" class="dot"/>
+  <path class="wire ground" d="M514 529 V550"/>
+  <rect x="490" y="550" width="48" height="44" rx="6" fill="#e7f3ef" stroke="#347e71" stroke-width="2"/>
+  <text x="437" y="589" class="small">100 kΩ</text>
+  <path class="wire ground" d="M514 594 V610 H678"/>
+
+  <!-- Ground bus -->
+  <path class="wire ground" d="M172 565 V610 H1220"/>
+  <path class="wire ground" d="M1193 530 V610"/>
+  <text x="1025" y="600" class="label">GND bersama</text>
+  <text x="91" y="420" class="small">GPIO7 HIGH → NPN ON → gate LOW → MOSFET ON</text>
+  <text x="89" y="595" class="small">GND ESP</text>
+
+  <rect x="55" y="655" width="1290" height="121" rx="15" fill="#fff2df" stroke="#e0ad61" stroke-width="2"/>
+  <text x="75" y="687" class="label">Sebelum dirakit</text>
+  <text x="75" y="716" class="body">Periksa kaki S/G/D dan C/B/E pada datasheet komponen fisik; gambar ini bukan tampak kaki/PCB.</text>
+  <text x="75" y="745" class="body">Pemancar harus mendukung 3,3 V. LED IR polos perlu resistor seri masing-masing; penerima IR tetap diberi 3,3 V langsung.</text>
+</svg>

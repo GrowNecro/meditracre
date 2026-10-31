@@ -1,0 +1,51 @@
+# MEDITRACE Cloudflare Worker
+
+Backend Worker untuk menggantikan Node.js shared hosting. Kode produksi akan
+dipasang ke Worker `meditrace` melalui Cloudflare Dashboard. Jangan simpan
+service-account Firebase atau API key Resend dalam berkas proyek ini.
+
+## Secrets yang diperlukan
+
+- `FIREBASE_PROJECT_ID`
+- `FIREBASE_SERVICE_ACCOUNT`
+- `RESEND_API_KEY`
+
+## Variable
+
+- `EMAIL_FROM`
+
+## Deploy dengan Wrangler
+
+```powershell
+npm install
+npm run deploy
+```
+
+Login Cloudflare sekali saja dengan `npx wrangler login`. Untuk development
+lokal, salin `.dev.vars.example` menjadi `.dev.vars`, isi rahasianya, lalu
+jalankan `npm run dev`. Jangan pernah memasukkan service account atau Resend
+API key ke `wrangler.toml`, `package.json`, maupun Git.
+
+Untuk menyimpan secret produksi:
+
+```powershell
+npx wrangler secret put FIREBASE_PROJECT_ID
+npx wrangler secret put FIREBASE_SERVICE_ACCOUNT
+npx wrangler secret put RESEND_API_KEY
+```
+
+## Endpoint aktif
+
+- `GET /healthz` — memeriksa konfigurasi Worker tanpa membuka rahasia.
+- `POST /v1/ensureUser` — membutuhkan Firebase ID token; membuat atau
+  memperbarui profil pengguna saat login Google.
+- `POST /v1/testEmail` — membutuhkan Firebase ID token dan `{ "email": "…" }`.
+- `POST /v1/testPush` — membutuhkan Firebase ID token dan `{ "token": "…" }`.
+- `POST /v1/createFamily`, `/v1/joinFamily`, `/v1/createInvitation` — grup dan
+  undangan keluarga.
+- `POST /v1/registerDevice`, `/v1/unregisterDevice` — token perangkat untuk
+  notifikasi.
+- `POST /v1/sendAlert`, `/v1/acknowledgeAlert` — peringatan anggota keluarga.
+
+Seluruh endpoint `POST /v1/*` membutuhkan Firebase ID token; Worker memeriksa
+token sebelum membaca atau menulis data Firestore.
