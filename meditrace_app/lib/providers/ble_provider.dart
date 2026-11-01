@@ -508,7 +508,7 @@ class BleProvider extends ChangeNotifier {
       await _app.familyAlerts.report(
         kind: 'separation_escalation',
         title: 'MEDITRACE terputus dari HP',
-        details: 'Pasien telah diperingatkan setelah 30 detik. MEDBOX belum terhubung kembali 5 menit kemudian. Periksa jarak dan daya perangkat.',
+        details: 'Pasien telah diperingatkan setelah 30 detik. MEDITRACE belum terhubung kembali 5 menit kemudian. Periksa jarak dan daya perangkat.',
       );
       await _app.addEvent(
         DoseEvent(
@@ -527,7 +527,7 @@ class BleProvider extends ChangeNotifier {
     try {
       await _app.familyAlerts.report(
         kind: 'medbox_left_behind',
-        title: 'Pasien melaporkan MEDBOX tertinggal',
+        title: 'Pasien melaporkan MEDITRACE tertinggal',
         details: 'Pasien mengonfirmasi bahwa kotak obat MEDITRACE tertinggal.',
       );
       await _app.addEvent(

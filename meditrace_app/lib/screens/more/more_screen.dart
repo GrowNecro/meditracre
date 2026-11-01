@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../providers/app_provider.dart';
 import '../../providers/ble_provider.dart';
 import '../../services/family_api.dart';
+import '../../services/app_update_service.dart';
 import 'family_screen.dart';
 import 'medication_guide_screen.dart';
 
@@ -256,6 +257,26 @@ class _MoreScreenState extends State<MoreScreen> {
                   onTap: () => _editProfile(context, app),
                 ),
               ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.system_update_outlined),
+              title: const Text('Perbarui aplikasi'),
+              subtitle: const Text(
+                'Unduh APK terbaru MEDITRACE dari GitHub Release.',
+              ),
+              trailing: const Icon(Icons.open_in_new),
+              onTap: () async {
+                try {
+                  await AppUpdateService.downloadLatestApk();
+                } on AppUpdateException catch (error) {
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context)
+                      .showSnackBar(SnackBar(content: Text(error.message)));
+                }
+              },
             ),
           ),
           const SizedBox(height: 12),

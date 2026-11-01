@@ -195,7 +195,9 @@ class _Dashboard extends StatelessWidget {
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
-                          connected ? 'MEDBOX aktif' : 'MEDBOX belum terhubung',
+                          connected
+                              ? 'MEDITRACE aktif'
+                              : 'MEDITRACE belum terhubung',
                           style: Theme.of(context).textTheme.titleMedium,
                         ),
                       ),
@@ -272,7 +274,7 @@ class _Dashboard extends StatelessWidget {
                     ),
                   ),
                   subtitle: Text(
-                    'Pastikan MEDBOX tetap dekat.',
+                    'Pastikan MEDITRACE tetap dekat.',
                     style: TextStyle(color: scheme.onErrorContainer),
                   ),
                 ),
@@ -452,7 +454,7 @@ class _MedicationBoxSummary extends StatelessWidget {
             Text(
               connected
                   ? '$filledCount dari $compartmentCount kompartemen terisi'
-                  : 'Hubungkan MEDBOX untuk melihat isi',
+                  : 'Hubungkan MEDITRACE untuk melihat isi',
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 12),

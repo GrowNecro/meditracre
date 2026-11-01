@@ -25,6 +25,7 @@ class SensorManager {
   bool doorClosed(size_t index) const;
   bool anyDoorOpen() const;
   bool available() const;
+  uint8_t expanderAddress() const;
   bool checkIrNow();
   String statusJson() const;
 
@@ -51,6 +52,7 @@ class SensorManager {
   void applyIrReading(uint16_t first, uint16_t second);
   bool irCheckActive() const;
   bool expanderReady_ = false;
+  uint8_t expanderAddress_ = MeditraceConfig::PCF8575_PREFERRED_ADDRESS;
   bool irKnown_ = false;
   bool irCheckValid_ = false;
   uint32_t retryAtMs_ = 0;

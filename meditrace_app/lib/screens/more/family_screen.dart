@@ -247,6 +247,63 @@ class _FamilyScreenState extends State<FamilyScreen> {
     );
   }
 
+  Future<void> _editFamily(int groupId, String currentName) async {
+    var name = currentName;
+    final submit = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Edit nama keluarga'),
+        content: TextField(
+          autofocus: true,
+          controller: TextEditingController(text: currentName),
+          decoration: const InputDecoration(labelText: 'Nama keluarga'),
+          onChanged: (value) => name = value,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Simpan'),
+          ),
+        ],
+      ),
+    );
+    if (submit != true || !mounted) return;
+    await _run(() => _api.updateFamily(groupId, name.trim()));
+  }
+
+  Future<void> _deleteFamily(int groupId, String name) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Hapus grup keluarga?'),
+        content: Text(
+          'Grup "$name" akan dihapus dan anggota tidak dapat lagi '
+          'mengaksesnya. Tindakan ini tidak dapat dibatalkan.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    await _run(() => _api.deleteFamily(groupId));
+  }
+
   Future<void> _logout() async {
     final relay = context.read<AppProvider>().familyAlerts;
     await _api.logout();
@@ -349,11 +406,32 @@ class _FamilyScreenState extends State<FamilyScreen> {
                   subtitle: Text('${item['members_count']} anggota'),
                   trailing: item['owner_id'] != _userId
                       ? null
-                      : IconButton(
-                          tooltip: 'Undang caregiver',
-                          icon: const Icon(Icons.person_add_alt_1),
-                          onPressed: () =>
-                              _invite(_groupId(item), item['name'].toString()),
+                      : PopupMenuButton<String>(
+                          onSelected: (action) {
+                            final id = _groupId(item);
+                            final name = item['name'].toString();
+                            if (action == 'invite') {
+                              _invite(id, name);
+                            } else if (action == 'edit') {
+                              _editFamily(id, name);
+                            } else {
+                              _deleteFamily(id, name);
+                            }
+                          },
+                          itemBuilder: (context) => const [
+                            PopupMenuItem(
+                              value: 'invite',
+                              child: Text('Undang caregiver'),
+                            ),
+                            PopupMenuItem(
+                              value: 'edit',
+                              child: Text('Edit nama'),
+                            ),
+                            PopupMenuItem(
+                              value: 'delete',
+                              child: Text('Hapus grup'),
+                            ),
+                          ],
                         ),
                 ),
               ),

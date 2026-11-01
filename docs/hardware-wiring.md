@@ -15,7 +15,7 @@ fungsional, bukan nomor kaki fisik tiap modul.
 | LED board | GPIO8 | Opsional, aktif LOW sesuai firmware |
 | Penerima break-beam 1–5 | PCF P00–P04 | OUT masing-masing penerima, VCC 3,3 V dan GND |
 | Reed pintu 1–5 | PCF P10–P14 | Kontak masing-masing ke GND |
-| Alamat PCF8575 | A0, A1, A2 ke GND | Alamat I²C 0x20 |
+| Alamat PCF8575 | Dipindai otomatis pada 0x20–0x27; 0x21 diprioritaskan | Alamat jumper modul |
 
 Semua GND beban harus bersama. Pull-up SDA/SCL hanya ke 3,3 V. Verifikasi tegangan kerja pemancar/penerima break-beam sebelum merakit. ESP32-C3
 tidak memakai RTC hardware; waktu disinkronkan dari aplikasi setelah BLE tersambung.

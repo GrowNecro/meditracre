@@ -152,6 +152,10 @@ class FamilyApi {
 
   Future<Map<String, dynamic>> createFamily(String name) =>
       _call('createFamily', {'name': name});
+  Future<Map<String, dynamic>> updateFamily(int groupId, String name) =>
+      _call('updateFamily', {'groupId': groupId, 'name': name});
+  Future<Map<String, dynamic>> deleteFamily(int groupId) =>
+      _call('deleteFamily', {'groupId': groupId});
   Future<Map<String, dynamic>> joinFamily(String code) =>
       _call('joinFamily', {'code': code});
   Future<Map<String, dynamic>> invite(int groupId, String role) =>

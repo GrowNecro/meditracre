@@ -48,7 +48,23 @@ async function verifyFirebase(request, env) {
         jwt.payload.exp * 1000 < Date.now()) {
       throw new Response(JSON.stringify({error:'Sesi tidak valid. Silakan masuk ulang.'}), {status:401});
     }
-    
+
+    async function withRetry(operation, label, attempts = 3) {
+      let lastError;
+      for (let attempt = 1; attempt <= attempts; attempt++) {
+        try {
+          return await operation();
+        } catch (error) {
+          lastError = error;
+          if (attempt < attempts) {
+            await new Promise((resolve) => setTimeout(resolve, 150 * 2 ** (attempt - 1)));
+          }
+        }
+      }
+      console.error(`${label} gagal setelah ${attempts} percobaan`, lastError);
+      throw lastError;
+    }
+
     return jwt.payload;
   } catch (e) {
     if (e instanceof Response) throw e;
@@ -190,6 +206,31 @@ async function createFamily(env, user, data) {
   return {ok: true, group: {id, name, owner_id: user.sub, members_count: 1}};
 }
 
+async function updateFamily(env, user, data) {
+  const groupId = Number(data.groupId);
+  const name = cleanText(data.name, 'Nama keluarga');
+  const group = await groupForMember(env, groupId, user.sub);
+  if (group.ownerUid !== user.sub) throw new Error('Hanya pemilik grup yang dapat mengubah nama.');
+  const groupDocument = await firestoreGet(env, `groups/${groupId}`);
+  await firestore(env, `groups/${groupId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({fields: {
+      ...groupDocument.document.fields,
+      name: firestoreField(name),
+      updatedAt: {timestampValue: new Date().toISOString()},
+    }}),
+  });
+  return {ok: true, group: {id: groupId, name}};
+}
+
+async function deleteFamily(env, user, data) {
+  const groupId = Number(data.groupId);
+  const group = await groupForMember(env, groupId, user.sub);
+  if (group.ownerUid !== user.sub) throw new Error('Hanya pemilik grup yang dapat menghapus grup.');
+  await firestoreDelete(env, `groups/${groupId}`);
+  return {ok: true};
+}
+
 async function createInvitation(env, user, data) {
   const groupId = Number(data.groupId);
   const role = data.role === 'caregiver' ? 'caregiver' : 'member';
@@ -291,7 +332,8 @@ async function sendAlert(env, user, data) {
   }
   // Firestore menyimpan inbox secara permanen. Push FCM adalah pelengkap agar
   // caregiver yang aplikasinya tertutup tetap segera menerima eskalasi.
-  const recipients = await Promise.all(group.memberUids.map(async (uid) => {
+  const recipients = await Promise.all(group.memberUids
+    .filter((uid) => uid !== user.sub).map(async (uid) => {
     try {
       return await firestoreList(env, `users/${encodeURIComponent(uid)}/devices`);
     } catch (error) {
@@ -299,25 +341,30 @@ async function sendAlert(env, user, data) {
       return [];
     }
   }));
-  await Promise.allSettled(recipients.flat().map((device) =>
+  const pushResults = await Promise.allSettled(recipients.flat().map((device) =>
     typeof device.token === 'string'
-      ? sendFcm(env, device.token, title, details || title)
+      ? withRetry(() => sendFcm(env, device.token, title, details || title), 'FCM')
       : Promise.resolve(),
   ));
+  pushResults.filter((result) => result.status === 'rejected')
+    .forEach((result) => console.error('FCM caregiver gagal', result.reason));
   const emailKinds = new Set(['separation_escalation', 'medbox_left_behind']);
   if (emailKinds.has(data.kind)) {
-    await Promise.allSettled(group.memberUids.filter((uid) => uid !== user.sub).map(async (uid) => {
+    const emailResults = await Promise.allSettled(group.memberUids
+      .filter((uid) => uid !== user.sub).map(async (uid) => {
       const profile = await firestoreGet(env, `users/${encodeURIComponent(uid)}`, {optional: true});
       const email = profile?.data?.email;
       if (typeof email === 'string' && email.includes('@')) {
-        await sendEmail(
+        await withRetry(() => sendEmail(
           env,
           email,
           title,
           `${escapeHtml(details || title)}<br><br>Buka aplikasi MEDITRACE untuk melihat dan menangani peringatan ini.`,
-        );
+        ), 'Email caregiver');
       }
     }));
+    emailResults.filter((result) => result.status === 'rejected')
+      .forEach((result) => console.error('Email caregiver gagal', result.reason));
   }
   return {ok: true};
 }
@@ -389,7 +436,8 @@ export default { async fetch(request, env) {
   if (request.method === 'GET' && url.pathname === '/healthz') return json({ok:true, service:'meditrace-api', firebaseProject:env.FIREBASE_PROJECT_ID, credentialsConfigured:!!env.FIREBASE_SERVICE_ACCOUNT, emailConfigured:!!env.RESEND_API_KEY});
   const endpoints = new Set([
     '/v1/ensureUser', '/v1/testEmail', '/v1/testPush',
-    '/v1/createFamily', '/v1/joinFamily', '/v1/createInvitation',
+    '/v1/createFamily', '/v1/updateFamily', '/v1/deleteFamily',
+    '/v1/joinFamily', '/v1/createInvitation',
     '/v1/sendInvitationEmail',
     '/v1/registerDevice', '/v1/unregisterDevice', '/v1/sendAlert',
     '/v1/acknowledgeAlert',
@@ -402,6 +450,10 @@ export default { async fetch(request, env) {
       return json(await ensureUser(env, user));
     } else if (url.pathname === '/v1/createFamily') {
       return json(await createFamily(env, user, data));
+    } else if (url.pathname === '/v1/updateFamily') {
+      return json(await updateFamily(env, user, data));
+    } else if (url.pathname === '/v1/deleteFamily') {
+      return json(await deleteFamily(env, user, data));
     } else if (url.pathname === '/v1/joinFamily') {
       return json(await joinFamily(env, user, data));
     } else if (url.pathname === '/v1/createInvitation') {

@@ -83,8 +83,8 @@ void printHardwareReport() {
   Serial.printf("I2C: SDA GPIO%u, SCL GPIO%u, 100 kHz\n",
                 MeditraceConfig::I2C_SDA_PIN,
                 MeditraceConfig::I2C_SCL_PIN);
-  Serial.printf("Expected: PCF8575 0x%02X (RTC tidak digunakan)\n",
-                MeditraceConfig::PCF8575_ADDRESS);
+  Serial.printf("PCF8575 scan: 0x20-0x27, preferred 0x%02X (RTC tidak digunakan)\n",
+                MeditraceConfig::PCF8575_PREFERRED_ADDRESS);
   Serial.print("I2C found:");
   bool foundAny = false;
   for (uint8_t address = 0x03; address < 0x78; ++address) {
@@ -96,8 +96,11 @@ void printHardwareReport() {
   }
   if (!foundAny) Serial.print(" none");
   Serial.println();
-  Serial.printf("PCF ready: %s | RTC: not used\n",
-                sensorManager.available() ? "yes" : "no");
+  Serial.printf("PCF ready: %s%s | RTC: not used\n",
+                sensorManager.available() ? "yes at 0x" : "no",
+                sensorManager.available()
+                    ? String(sensorManager.expanderAddress(), HEX).c_str()
+                    : "");
   Serial.println("Inputs: IR P00..P04 (HIGH=beam blocked), NC limit P10..P14 (HIGH=closed).");
   Serial.println("Sensor snapshot (P00..P04 / P10..P14): " +
                  sensorManager.statusJson());

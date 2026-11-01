@@ -31,7 +31,7 @@ inline constexpr size_t SENSOR_COUNT = 5;
 inline constexpr size_t REED_COUNT = 5;
 static_assert(SENSOR_COUNT == REED_COUNT && SENSOR_COUNT <= 8,
               "PCF8575: IR di port 0 dan saklar pintu di port 1 harus berpasangan");
-inline constexpr uint8_t PCF8575_ADDRESS = 0x20; // A0, A1, A2 ke GND.
+inline constexpr uint8_t PCF8575_PREFERRED_ADDRESS = 0x21;
 inline constexpr char BOARD_TYPE[] = "ESP32-C3";
 inline constexpr char DEVICE_NAME_PREFIX[] = "MEDITRACE-C3-";
 inline constexpr uint8_t LED_PIN = 8;

@@ -32,7 +32,7 @@ Untuk update online, unggah binary tersebut ke GitHub Release dengan nama asset
 `meditrace-esp32-c3.bin`. Aplikasi mengambil asset dari release terbaru melalui
 URL:
 
-`https://github.com/GrowNecro/medbox/releases/latest/download/meditrace-esp32-c3.bin`
+`https://github.com/GrowNecro/meditracre/releases/latest/download/meditrace-esp32-c3.bin`
 
 ## Sinkronisasi waktu dan update BLE
 
@@ -46,7 +46,8 @@ dan CRC32 diverifikasi di perangkat, lalu ESP32 restart hanya setelah transfer
 valid. Jangan memutus koneksi atau mematikan perangkat selama proses update.
 
 Hubungkan PCF8575 dengan **VCC 3,3 V** dan GND bersama ESP32-C3. A0, A1,
-dan A2 ke GND menghasilkan alamat I²C `0x20`. Pasang pull-up I²C ke
+Firmware memindai alamat PCF8575 `0x20–0x27` dan memprioritaskan `0x21`, sehingga
+perubahan jumper A0–A2 tidak memerlukan perubahan kode. Pasang pull-up I²C ke
 **3,3 V**, jangan ke 5 V. Gunakan
 **PCF8575**, bukan PCF8575C (varian C memerlukan tegangan suplai lebih tinggi).
 

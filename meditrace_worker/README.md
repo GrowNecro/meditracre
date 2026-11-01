@@ -43,8 +43,8 @@ npx wrangler secret put RESEND_API_KEY
   memperbarui profil pengguna saat login Google.
 - `POST /v1/testEmail` — membutuhkan Firebase ID token dan `{ "email": "…" }`.
 - `POST /v1/testPush` — membutuhkan Firebase ID token dan `{ "token": "…" }`.
-- `POST /v1/createFamily`, `/v1/joinFamily`, `/v1/createInvitation` — grup dan
-  undangan keluarga.
+- `POST /v1/createFamily`, `/v1/updateFamily`, `/v1/deleteFamily`,
+  `/v1/joinFamily`, `/v1/createInvitation` — grup dan undangan keluarga.
 - `POST /v1/sendInvitationEmail` — mengirim kode undangan melalui Resend.
 - `GET /.well-known/assetlinks.json` — konfigurasi Android App Links dari
   `ANDROID_SHA256_CERT_FINGERPRINTS`.

@@ -220,11 +220,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
     'DOSE_CONFIRMED' => 'Obat diminum · ${_timingText(status)}',
     'DOSE_CONFIRMATION_REVOKED' => 'Konfirmasi minum dibatalkan',
     'DOSE_MISSED' => 'Jadwal obat terlewat',
-    'BLE_DISCONNECTED' => 'Koneksi MEDBOX terputus',
-    'SEPARATION_PATIENT_WARNED' => 'Peringatan: MEDBOX tidak terdeteksi',
+    'BLE_DISCONNECTED' => 'Koneksi MEDITRACE terputus',
+    'SEPARATION_PATIENT_WARNED' => 'Peringatan: MEDITRACE tidak terdeteksi',
     'SEPARATION_CAREGIVER_ESCALATED' => 'Peringatan dikirim ke keluarga',
-    'SEPARATION_FALSE_ALARM' => 'MEDBOX terhubung kembali',
-    'MEDBOX_LEFT_BEHIND' => 'MEDBOX dilaporkan tertinggal',
+    'SEPARATION_FALSE_ALARM' => 'MEDITRACE terhubung kembali',
+    'MEDBOX_LEFT_BEHIND' => 'MEDITRACE dilaporkan tertinggal',
     _ => 'Aktivitas perangkat',
   };
 

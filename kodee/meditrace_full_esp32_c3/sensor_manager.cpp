@@ -16,7 +16,7 @@ void SensorManager::begin() {
   } else {
     retryAtMs_ = millis() + 2000;
     if (MeditraceConfig::DEBUG_LOGS) {
-      Serial.println("PCF8575 tidak ditemukan pada alamat 0x20");
+      Serial.println("PCF8575 tidak ditemukan pada alamat 0x20-0x27");
     }
   }
 #else
@@ -37,7 +37,7 @@ void SensorManager::begin() {
 
 #if defined(CONFIG_IDF_TARGET_ESP32C3)
 bool SensorManager::readPorts(uint16_t& ports) {
-  if (Wire.requestFrom(MeditraceConfig::PCF8575_ADDRESS,
+  if (Wire.requestFrom(expanderAddress_,
                        static_cast<uint8_t>(2)) != 2) {
     return false;
   }
@@ -53,11 +53,26 @@ bool SensorManager::beginExpander() {
   // port 1 bit 0..4 = limit switch NC pintu. P05/P15 cadangan; semua
   // port ditulis HIGH. Kontak NC tertutup menarik pin LOW.
   // Tidak ada register arah seperti MCP23017.
-  Wire.beginTransmission(MeditraceConfig::PCF8575_ADDRESS);
-  Wire.write(0xFF);
-  Wire.write(0xFF);
-  if (Wire.endTransmission() != 0) return false;
-
+  const auto tryAddress = [this](uint8_t address) {
+    Wire.beginTransmission(address);
+    Wire.write(0xFF);
+    Wire.write(0xFF);
+    if (Wire.endTransmission() != 0) return false;
+    expanderAddress_ = address;
+    uint16_t ports;
+    return readPorts(ports);
+  };
+  if (!tryAddress(MeditraceConfig::PCF8575_PREFERRED_ADDRESS)) {
+    bool found = false;
+    for (uint8_t address = 0x20; address <= 0x27; ++address) {
+      if (address == MeditraceConfig::PCF8575_PREFERRED_ADDRESS) continue;
+      if (tryAddress(address)) {
+        found = true;
+        break;
+      }
+    }
+    if (!found) return false;
+  }
   uint16_t ports;
   if (!readPorts(ports)) return false;
   for (size_t i = 0; i < MeditraceConfig::REED_COUNT; ++i) {
@@ -68,11 +83,17 @@ bool SensorManager::beginExpander() {
   irKnown_ = false;
   irCheckValid_ = false;
   if (MeditraceConfig::DEBUG_LOGS) {
-    Serial.printf("PCF8575 siap: %u IR + %u saklar pintu\n",
+    Serial.printf("PCF8575 siap di 0x%02X: %u IR + %u saklar pintu\n",
+                  expanderAddress_,
                   static_cast<unsigned>(MeditraceConfig::SENSOR_COUNT),
                   static_cast<unsigned>(MeditraceConfig::REED_COUNT));
   }
+
   return true;
+}
+
+uint8_t SensorManager::expanderAddress() const {
+  return expanderAddress_;
 }
 
 void SensorManager::queueEvent(const SensorEvent& event) {

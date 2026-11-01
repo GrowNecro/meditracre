@@ -17,7 +17,7 @@ void main() {
   testWidgets('menampilkan kondisi awal disconnected', (tester) async {
     await tester.pumpWidget(MeditraceApp(bleService: _FakeBleService()));
 
-    expect(find.text('MEDBOX belum terhubung'), findsOneWidget);
+    expect(find.text('MEDITRACE belum terhubung'), findsOneWidget);
     expect(find.text('Belum terhubung'), findsNothing);
     expect(find.byIcon(Icons.bluetooth_searching), findsOneWidget);
   });
