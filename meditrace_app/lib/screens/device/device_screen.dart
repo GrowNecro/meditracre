@@ -80,26 +80,56 @@ class DeviceScreen extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         if (connected) ...[
-          OutlinedButton.icon(
-            onPressed: ble.isBusy
-                ? null
-                : () => _downloadAndUpdateFirmware(context, ble),
-            icon: const Icon(Icons.cloud_download_outlined),
-            label: const Text('Update firmware terbaru'),
-          ),
-          OutlinedButton.icon(
-            onPressed: ble.isBusy
-                ? null
-                : () => _selectAndUpdateFirmware(context, ble),
-            icon: const Icon(Icons.folder_open_outlined),
-            label: const Text('Pilih firmware dari perangkat'),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Firmware ESP32-C3',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Update terbaru diunduh dari GitHub Release lalu dikirim '
+                    'ke perangkat melalui BLE.',
+                  ),
+                  const SizedBox(height: 12),
+                  FilledButton.icon(
+                    onPressed: ble.isBusy
+                        ? null
+                        : () => _downloadAndUpdateFirmware(context, ble),
+                    icon: const Icon(Icons.cloud_download_outlined),
+                    label: const Text('Update firmware terbaru'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: ble.isBusy
+                        ? null
+                        : () => _selectAndUpdateFirmware(context, ble),
+                    icon: const Icon(Icons.folder_open_outlined),
+                    label: const Text('Pilih file .bin lokal'),
+                  ),
+                  if (ble.firmwareProgress > 0) ...[
+                    const SizedBox(height: 8),
+                    LinearProgressIndicator(
+                      value: ble.firmwareProgress < 1
+                          ? ble.firmwareProgress
+                          : 1,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      ble.firmwareProgress < 1
+                          ? 'Mengirim firmware '
+                                '${(ble.firmwareProgress * 100).round()}%...'
+                          : 'Firmware selesai dikirim. Perangkat sedang restart.',
+                    ),
+                  ],
+                ],
+              ),
+            ),
           ),
         ],
-        if (ble.firmwareProgress > 0 && ble.firmwareProgress < 1)
-          Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: LinearProgressIndicator(value: ble.firmwareProgress),
-          ),
         const SizedBox(height: 16),
         if (!connected)
           FilledButton.icon(

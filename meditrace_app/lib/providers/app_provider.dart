@@ -24,6 +24,9 @@ class AppProvider extends ChangeNotifier {
   List<DoseEvent> history = [];
   String patientName = 'Pengguna MEDITRACE';
   String familyName = 'Keluarga Saya';
+  int? patientAge;
+  String emergencyPhone = '';
+  String emergencyEmail = '';
   int separationMinutes = 5;
   String? pairedDeviceId;
   bool autoReconnectEnabled = false;
@@ -74,6 +77,11 @@ class AppProvider extends ChangeNotifier {
     try {
       patientName = await _database.getSetting('patient_name') ?? patientName;
       familyName = await _database.getSetting('family_name') ?? familyName;
+      patientAge = int.tryParse(
+        await _database.getSetting('patient_age') ?? '',
+      );
+      emergencyPhone = await _database.getSetting('emergency_phone') ?? '';
+      emergencyEmail = await _database.getSetting('emergency_email') ?? '';
       separationMinutes =
           int.tryParse(
             await _database.getSetting('separation_minutes') ?? '',
@@ -400,11 +408,23 @@ class AppProvider extends ChangeNotifier {
   Future<void> updateProfile({
     required String name,
     required String family,
+    int? age,
+    String emergencyPhone = '',
+    String emergencyEmail = '',
   }) async {
     patientName = name.trim().isEmpty ? patientName : name.trim();
     familyName = family.trim().isEmpty ? familyName : family.trim();
+    patientAge = age;
+    this.emergencyPhone = emergencyPhone.trim();
+    this.emergencyEmail = emergencyEmail.trim();
     await _database.setSetting('patient_name', patientName);
     await _database.setSetting('family_name', familyName);
+    await _database.setSetting(
+      'patient_age',
+      patientAge == null ? '' : '$patientAge',
+    );
+    await _database.setSetting('emergency_phone', this.emergencyPhone);
+    await _database.setSetting('emergency_email', this.emergencyEmail);
     notifyListeners();
   }
 

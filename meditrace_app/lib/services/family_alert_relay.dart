@@ -57,7 +57,16 @@ class FamilyAlertRelay {
       final groups = (await _api.families())['groups'] as List? ?? [];
       final owned = groups.where((item) => (item as Map)['owner_id'] == userId);
       if (owned.length != 1) return null;
-      final id = (owned.single as Map)['id'] as int;
+      final value = (owned.single as Map)['id'];
+      final id = switch (value) {
+        int value => value,
+        num value => value.toInt(),
+        String value => int.tryParse(value),
+        _ => null,
+      };
+      if (id == null || id < 1) {
+        throw StateError('ID grup keluarga tidak valid.');
+      }
       await selectGroup(id);
       return id;
     } catch (_) {

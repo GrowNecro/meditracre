@@ -20,4 +20,6 @@ Copy-Item .pio\build\esp32-c3\firmware.bin meditrace-esp32-c3.bin
 ```
 
 Nama asset release harus `meditrace-esp32-c3.bin` agar aplikasi dapat mengambil
-firmware terbaru melalui GitHub Releases.
+firmware terbaru melalui GitHub Releases. Workflow `.github/workflows/release.yml`
+juga membuat APK `meditrace.apk` dan firmware tersebut otomatis saat tag `v*`
+dipush ke GitHub.

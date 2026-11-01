@@ -13,6 +13,8 @@ service-account Firebase atau API key Resend dalam berkas proyek ini.
 ## Variable
 
 - `EMAIL_FROM`
+- `ANDROID_SHA256_CERT_FINGERPRINTS` — fingerprint SHA-256 sertifikat APK,
+  dipisahkan koma jika ada lebih dari satu (debug/release).
 
 ## Deploy dengan Wrangler
 
@@ -43,9 +45,15 @@ npx wrangler secret put RESEND_API_KEY
 - `POST /v1/testPush` — membutuhkan Firebase ID token dan `{ "token": "…" }`.
 - `POST /v1/createFamily`, `/v1/joinFamily`, `/v1/createInvitation` — grup dan
   undangan keluarga.
+- `POST /v1/sendInvitationEmail` — mengirim kode undangan melalui Resend.
+- `GET /.well-known/assetlinks.json` — konfigurasi Android App Links dari
+  `ANDROID_SHA256_CERT_FINGERPRINTS`.
 - `POST /v1/registerDevice`, `/v1/unregisterDevice` — token perangkat untuk
   notifikasi.
 - `POST /v1/sendAlert`, `/v1/acknowledgeAlert` — peringatan anggota keluarga.
 
 Seluruh endpoint `POST /v1/*` membutuhkan Firebase ID token; Worker memeriksa
 token sebelum membaca atau menulis data Firestore.
+
+Peringatan `separation_escalation` dan `medbox_left_behind` dikirim melalui
+FCM dan email ke anggota grup selain pengirim jika profil mereka memiliki email.

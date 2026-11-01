@@ -49,6 +49,7 @@ dependencies:
   cloud_firestore: ^7.0.0
   firebase_messaging: ^17.0.0
   file_picker: ^13.3.0
+  app_links: ^6.4.1
 
 dev_dependencies:
   flutter_test:

@@ -156,6 +156,17 @@ class FamilyApi {
       _call('joinFamily', {'code': code});
   Future<Map<String, dynamic>> invite(int groupId, String role) =>
       _call('createInvitation', {'groupId': groupId, 'role': role});
+  Future<Map<String, dynamic>> sendInvitationEmail({
+    required int groupId,
+    required String email,
+    required String code,
+    required String groupName,
+  }) => _call('sendInvitationEmail', {
+    'groupId': groupId,
+    'email': email,
+    'code': code,
+    'groupName': groupName,
+  });
   Future<Map<String, dynamic>> sendAlert(
     int groupId,
     String title,

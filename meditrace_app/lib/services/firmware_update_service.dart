@@ -3,6 +3,8 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 
 abstract final class FirmwareUpdateService {
+  static const latestReleaseUrl =
+      'https://github.com/GrowNecro/medbox/releases/latest';
   static const latestEsp32C3Url =
       'https://github.com/GrowNecro/medbox/releases/latest/download/'
       'meditrace-esp32-c3.bin';
@@ -16,10 +18,16 @@ abstract final class FirmwareUpdateService {
         'Firmware online tidak tersedia (${response.statusCode}).',
       );
     }
-    if (response.bodyBytes.isEmpty) {
+    final bytes = response.bodyBytes;
+    if (bytes.isEmpty) {
       throw const FirmwareUpdateException('File firmware online kosong.');
     }
-    return Uint8List.fromList(response.bodyBytes);
+    if (bytes.first != 0xE9) {
+      throw const FirmwareUpdateException(
+        'File bukan firmware ESP32 yang valid; update dibatalkan.',
+      );
+    }
+    return Uint8List.fromList(bytes);
   }
 }
 

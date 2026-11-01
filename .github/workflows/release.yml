@@ -1,0 +1,83 @@
+name: Release MEDITRACE
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Create Firebase build placeholder
+        working-directory: meditrace_app
+        run: |
+          mkdir -p android/app
+          cat > android/app/google-services.json <<'JSON'
+          {
+            "project_info": {
+              "project_number": "0",
+              "project_id": "meditrace-release",
+              "storage_bucket": "meditrace-release.appspot.com"
+            },
+            "client": [{
+              "client_info": {
+                "mobilesdk_app_id": "1:0:android:release",
+                "android_client_info": {
+                  "package_name": "com.example.meditrace"
+                }
+              },
+              "api_key": [{"current_key": "release-placeholder"}],
+              "services": {}
+            }]
+          }
+          JSON
+
+      - name: Build Android APK
+        working-directory: meditrace_app
+        run: |
+          flutter pub get
+          flutter build apk --release
+          cp build/app/outputs/flutter-apk/app-release.apk ../meditrace.apk
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install PlatformIO
+        run: pip install platformio
+
+      - name: Build ESP32-C3 firmware
+        working-directory: kodee/meditrace_full_esp32_c3
+        run: |
+          pio run
+          cp .pio/build/esp32-c3/firmware.bin ../../meditrace-esp32-c3.bin
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            meditrace.apk \
+            meditrace-esp32-c3.bin \
+            --title "MEDITRACE ${GITHUB_REF_NAME}" \
+            --generate-notes

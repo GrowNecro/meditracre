@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:app_links/app_links.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -42,6 +43,10 @@ class _MeditraceAppState extends State<MeditraceApp>
     with WidgetsBindingObserver {
   late final AppProvider _app;
   late final BleProvider _ble;
+  final _appLinks = AppLinks();
+  StreamSubscription<Uri>? _linkSubscription;
+  String? _inviteCode;
+  int _homeTab = 0;
 
   @override
   void initState() {
@@ -49,7 +54,34 @@ class _MeditraceAppState extends State<MeditraceApp>
     WidgetsBinding.instance.addObserver(this);
     _app = AppProvider(database: widget.database);
     _ble = BleProvider(widget.bleService ?? FlutterBlueBleService(), _app);
+    _linkSubscription = _appLinks.uriLinkStream.listen(_handleLink);
+    unawaited(_readInitialLink());
     unawaited(_start());
+  }
+
+  Future<void> _readInitialLink() async {
+    try {
+      final uri = await _appLinks.getInitialLink();
+      if (uri != null) _handleLink(uri);
+    } catch (_) {
+      // Link handling is optional; the normal app flow remains available.
+    }
+  }
+
+  void _handleLink(Uri uri) {
+    final segments = uri.pathSegments;
+    if (uri.host != 'meditrace.grownecro.tech' ||
+        segments.length != 2 ||
+        segments.first != 'invite' ||
+        !RegExp(r'^[0-9A-Fa-f]{24}$').hasMatch(segments.last)) {
+      return;
+    }
+    if (mounted) {
+      setState(() {
+        _inviteCode = segments.last.toUpperCase();
+        _homeTab = 4;
+      });
+    }
   }
 
   @override
@@ -70,6 +102,7 @@ class _MeditraceAppState extends State<MeditraceApp>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    unawaited(_linkSubscription?.cancel());
     _ble.dispose();
     _app.dispose();
     super.dispose();
@@ -91,7 +124,11 @@ class _MeditraceAppState extends State<MeditraceApp>
         ),
         useMaterial3: true,
       ),
-      home: const HomeScreen(),
+      home: HomeScreen(
+        selectedIndex: _homeTab,
+        inviteCode: _inviteCode,
+        onInviteConsumed: () => setState(() => _inviteCode = null),
+      ),
     ),
   );
 }

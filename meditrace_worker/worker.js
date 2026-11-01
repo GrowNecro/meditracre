@@ -210,6 +210,22 @@ async function createInvitation(env, user, data) {
   return {ok: true, code, expiresAt};
 }
 
+async function sendInvitationEmail(env, user, data) {
+  const email = cleanText(data.email, 'Email penerima');
+  if (!email.includes('@') || email.includes(' ')) throw new Error('Email tidak valid.');
+  const code = cleanText(data.code, 'Kode undangan');
+  const groupName = cleanText(data.groupName || 'keluarga MEDITRACE', 'Nama grup');
+  const group = await groupForMember(env, Number(data.groupId), user.sub);
+  if (group.ownerUid !== user.sub) throw new Error('Hanya pemilik grup yang dapat mengundang anggota.');
+  await sendEmail(
+    env,
+    email,
+    'Undangan keluarga',
+    `Anda diundang bergabung ke grup ${escapeHtml(groupName)}. Buka https://meditrace.grownecro.tech/invite/${escapeHtml(code)} untuk membuka aplikasi MEDITRACE. Kode undangan: ${escapeHtml(code)}. Kode berlaku 7 hari dan hanya bisa dipakai sekali.`,
+  );
+  return {ok: true};
+}
+
 async function joinFamily(env, user, data) {
   const code = cleanText(data.code, 'Kode undangan', 20).toUpperCase();
   const invitation = await firestoreGet(env, `invitations/${code}`, {optional: true});
@@ -288,6 +304,21 @@ async function sendAlert(env, user, data) {
       ? sendFcm(env, device.token, title, details || title)
       : Promise.resolve(),
   ));
+  const emailKinds = new Set(['separation_escalation', 'medbox_left_behind']);
+  if (emailKinds.has(data.kind)) {
+    await Promise.allSettled(group.memberUids.filter((uid) => uid !== user.sub).map(async (uid) => {
+      const profile = await firestoreGet(env, `users/${encodeURIComponent(uid)}`, {optional: true});
+      const email = profile?.data?.email;
+      if (typeof email === 'string' && email.includes('@')) {
+        await sendEmail(
+          env,
+          email,
+          title,
+          `${escapeHtml(details || title)}<br><br>Buka aplikasi MEDITRACE untuk melihat dan menangani peringatan ini.`,
+        );
+      }
+    }));
+  }
   return {ok: true};
 }
 
@@ -324,6 +355,12 @@ async function sendEmail(env, to, title, details) {
   if (!res.ok) throw new Error('Resend menolak email');
 }
 
+function escapeHtml(value) {
+  return value.replace(/[&<>"']/g, (character) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[character]));
+}
+
 async function sendFcm(env, token, title, details) {
   const access = await googleAccessToken(env);
   const res = await fetch(`https://fcm.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/messages:send`, {method:'POST',headers:{authorization:`Bearer ${access}`,'content-type':'application/json'},body:JSON.stringify({message:{token,notification:{title:'MEDITRACE',body:title},data:{details:details || ''}}})});
@@ -332,10 +369,28 @@ async function sendFcm(env, token, title, details) {
 
 export default { async fetch(request, env) {
   const url = new URL(request.url);
+  if (request.method === 'GET' && url.pathname === '/.well-known/assetlinks.json') {
+    const fingerprints = (env.ANDROID_SHA256_CERT_FINGERPRINTS || '')
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean);
+    if (fingerprints.length === 0) {
+      return json({error: 'Android signing fingerprint belum dikonfigurasi.'}, 503);
+    }
+    return json([{
+      relation: ['delegate_permission/common.handle_all_urls'],
+      target: {
+        namespace: 'android_app',
+        package_name: 'com.example.meditrace',
+        sha256_cert_fingerprints: fingerprints,
+      },
+    }]);
+  }
   if (request.method === 'GET' && url.pathname === '/healthz') return json({ok:true, service:'meditrace-api', firebaseProject:env.FIREBASE_PROJECT_ID, credentialsConfigured:!!env.FIREBASE_SERVICE_ACCOUNT, emailConfigured:!!env.RESEND_API_KEY});
   const endpoints = new Set([
     '/v1/ensureUser', '/v1/testEmail', '/v1/testPush',
     '/v1/createFamily', '/v1/joinFamily', '/v1/createInvitation',
+    '/v1/sendInvitationEmail',
     '/v1/registerDevice', '/v1/unregisterDevice', '/v1/sendAlert',
     '/v1/acknowledgeAlert',
   ]);
@@ -351,6 +406,8 @@ export default { async fetch(request, env) {
       return json(await joinFamily(env, user, data));
     } else if (url.pathname === '/v1/createInvitation') {
       return json(await createInvitation(env, user, data));
+    } else if (url.pathname === '/v1/sendInvitationEmail') {
+      return json(await sendInvitationEmail(env, user, data));
     } else if (url.pathname === '/v1/registerDevice') {
       return json(await registerDevice(env, user, data));
     } else if (url.pathname === '/v1/unregisterDevice') {

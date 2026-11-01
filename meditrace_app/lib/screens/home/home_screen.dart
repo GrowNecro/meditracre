@@ -13,7 +13,16 @@ import '../more/medication_guide_screen.dart';
 import '../more/more_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({
+    super.key,
+    this.selectedIndex = 0,
+    this.inviteCode,
+    this.onInviteConsumed,
+  });
+
+  final int selectedIndex;
+  final String? inviteCode;
+  final VoidCallback? onInviteConsumed;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -21,6 +30,20 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _index = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _index = widget.selectedIndex;
+  }
+
+  @override
+  void didUpdateWidget(covariant HomeScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.selectedIndex != oldWidget.selectedIndex) {
+      setState(() => _index = widget.selectedIndex);
+    }
+  }
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -51,12 +74,15 @@ class _HomeScreenState extends State<HomeScreen> {
     ),
     body: IndexedStack(
       index: _index,
-      children: const [
+      children: [
         _Dashboard(),
         MedicationScreen(),
         HistoryScreen(),
         DeviceScreen(embedded: true),
-        MoreScreen(),
+        MoreScreen(
+          inviteCode: widget.inviteCode,
+          onInviteConsumed: widget.onInviteConsumed,
+        ),
       ],
     ),
     bottomNavigationBar: NavigationBar(
@@ -197,10 +223,7 @@ class _Dashboard extends StatelessWidget {
                   const SizedBox(height: 14),
                   Row(
                     children: [
-                      Icon(
-                        batteryIcon,
-                        color: batteryColor,
-                      ),
+                      Icon(batteryIcon, color: batteryColor),
                       const SizedBox(width: 10),
                       const Expanded(child: Text('Baterai')),
                       Text(

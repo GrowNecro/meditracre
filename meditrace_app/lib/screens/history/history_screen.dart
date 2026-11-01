@@ -3,9 +3,51 @@ import 'package:provider/provider.dart';
 
 import '../../models/dose_event.dart';
 import '../../providers/app_provider.dart';
+import '../../services/family_api.dart';
 
-class HistoryScreen extends StatelessWidget {
+class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
+
+  @override
+  State<HistoryScreen> createState() => _HistoryScreenState();
+}
+
+class _HistoryScreenState extends State<HistoryScreen> {
+  final _familyApi = FamilyApi();
+  List<dynamic> _familyAlerts = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFamilyAlerts();
+  }
+
+  @override
+  void dispose() {
+    _familyApi.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadFamilyAlerts() async {
+    try {
+      if (!await _familyApi.hasSession || !_familyApi.backendConfigured) return;
+      final result = await _familyApi.inbox();
+      if (mounted) {
+        setState(() => _familyAlerts = result['data'] as List? ?? []);
+      }
+    } catch (_) {
+      // Riwayat lokal tetap tersedia jika inbox keluarga belum dapat dibaca.
+    }
+  }
+
+  Future<void> _acknowledge(String alertId) async {
+    try {
+      await _familyApi.acknowledge(alertId);
+      await _loadFamilyAlerts();
+    } catch (_) {
+      // The alert remains visible and can be acknowledged again later.
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,51 +67,62 @@ class HistoryScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: events.length + (preview ? 1 : 0),
-              separatorBuilder: (_, _) => const SizedBox(height: 8),
-              itemBuilder: (context, index) {
-                if (preview && index == 0) {
-                  return Card(
-                    color: Theme.of(context).colorScheme.secondaryContainer,
-                    child: const ListTile(
-                      leading: Icon(Icons.visibility_outlined),
-                      title: Text('Contoh tampilan riwayat'),
-                      subtitle: Text(
-                        'Aktivitas di bawah hanya contoh dan tidak tersimpan.',
-                      ),
-                    ),
-                  );
-                }
-                final event = events[index - (preview ? 1 : 0)];
-                final time = event.timestamp.toLocal();
-                final color = _eventColor(context, event.type);
+      body: ListView(
+        children: [
+          if (_familyAlerts.isNotEmpty || _familyApi.backendConfigured)
+            _FamilyAlertsSection(
+              alerts: _familyAlerts,
+              onAcknowledge: _acknowledge,
+            ),
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(16),
+            itemCount: events.length + (preview ? 1 : 0),
+            separatorBuilder: (_, _) => const SizedBox(height: 8),
+            itemBuilder: (context, index) {
+              if (preview && index == 0) {
                 return Card(
-                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 4,
-                    ),
-                    leading: CircleAvatar(
-                      backgroundColor: color.withValues(alpha: 0.14),
-                      foregroundColor: color,
-                      child: Icon(_eventIcon(event.type)),
-                    ),
-                    title: Text(
-                      _eventTitle(event.type, event.state, event.status),
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
+                  color: Theme.of(context).colorScheme.secondaryContainer,
+                  child: const ListTile(
+                    leading: Icon(Icons.visibility_outlined),
+                    title: Text('Contoh tampilan riwayat'),
                     subtitle: Text(
-                      '${time.day.toString().padLeft(2, '0')}/${time.month.toString().padLeft(2, '0')}/${time.year} '
-                      '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}'
-                      '${event.sensorId == null ? '' : ' · Ruang ${event.sensorId}'}',
+                      'Aktivitas di bawah hanya contoh dan tidak tersimpan.',
                     ),
                   ),
                 );
-              },
-            ),
+              }
+              final event = events[index - (preview ? 1 : 0)];
+              final time = event.timestamp.toLocal();
+              final color = _eventColor(context, event.type);
+              return Card(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 4,
+                  ),
+                  leading: CircleAvatar(
+                    backgroundColor: color.withValues(alpha: 0.14),
+                    foregroundColor: color,
+                    child: Icon(_eventIcon(event.type)),
+                  ),
+                  title: Text(
+                    _eventTitle(event.type, event.state, event.status),
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: Text(
+                    '${time.day.toString().padLeft(2, '0')}/${time.month.toString().padLeft(2, '0')}/${time.year} '
+                    '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}'
+                    '${event.sensorId == null ? '' : ' · Ruang ${event.sensorId}'}',
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 
@@ -168,8 +221,7 @@ class HistoryScreen extends StatelessWidget {
     'DOSE_CONFIRMATION_REVOKED' => 'Konfirmasi minum dibatalkan',
     'DOSE_MISSED' => 'Jadwal obat terlewat',
     'BLE_DISCONNECTED' => 'Koneksi MEDBOX terputus',
-    'SEPARATION_PATIENT_WARNED' =>
-      'Peringatan: MEDBOX tidak terdeteksi',
+    'SEPARATION_PATIENT_WARNED' => 'Peringatan: MEDBOX tidak terdeteksi',
     'SEPARATION_CAREGIVER_ESCALATED' => 'Peringatan dikirim ke keluarga',
     'SEPARATION_FALSE_ALARM' => 'MEDBOX terhubung kembali',
     'MEDBOX_LEFT_BEHIND' => 'MEDBOX dilaporkan tertinggal',
@@ -182,4 +234,53 @@ class HistoryScreen extends StatelessWidget {
     'LATE' => 'terlambat',
     _ => 'tercatat',
   };
+}
+
+class _FamilyAlertsSection extends StatelessWidget {
+  const _FamilyAlertsSection({
+    required this.alerts,
+    required this.onAcknowledge,
+  });
+
+  final List<dynamic> alerts;
+  final Future<void> Function(String) onAcknowledge;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+    child: Column(
+      children: [
+        const ListTile(
+          leading: Icon(Icons.notifications_active_outlined),
+          title: Text('Pemberitahuan keluarga'),
+          subtitle: Text('Peringatan caregiver dan anggota keluarga'),
+        ),
+        if (alerts.isEmpty)
+          const ListTile(
+            title: Text('Belum ada pemberitahuan keluarga'),
+            contentPadding: EdgeInsets.fromLTRB(16, 0, 16, 12),
+          ),
+        for (final rawAlert in alerts)
+          Builder(
+            builder: (context) {
+              final item = rawAlert as Map;
+              final alertId = item['id']?.toString();
+              return ListTile(
+                title: Text(item['title']?.toString() ?? 'Peringatan keluarga'),
+                subtitle: Text(
+                  '${item['group_name'] ?? 'Keluarga'} · '
+                  '${item['occurred_at'] ?? '-'}',
+                ),
+                trailing: item['acknowledged_at'] == null && alertId != null
+                    ? TextButton(
+                        onPressed: () => onAcknowledge(alertId),
+                        child: const Text('Tangani'),
+                      )
+                    : const Icon(Icons.check_circle_outline),
+              );
+            },
+          ),
+      ],
+    ),
+  );
 }

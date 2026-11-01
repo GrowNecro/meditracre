@@ -70,11 +70,11 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.edit_outlined));
     await tester.pumpAndSettle();
-    expect(find.text('Profil lokal'), findsOneWidget);
+    expect(find.text('Ubah profil'), findsOneWidget);
     await tester.tap(find.text('Batal'));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
-    expect(find.text('Keluarga & Profil'), findsOneWidget);
+    expect(find.text('Profil'), findsWidgets);
   });
 
   test('parsing device info aman untuk payload minimum', () {

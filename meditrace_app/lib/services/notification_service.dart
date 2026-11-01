@@ -16,6 +16,18 @@ class NotificationService {
         android: AndroidInitializationSettings('@mipmap/ic_launcher'),
       ),
     );
+    await _plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >()
+        ?.createNotificationChannel(
+          const AndroidNotificationChannel(
+            'family_alerts',
+            'Peringatan keluarga',
+            description: 'Peringatan dari caregiver dan anggota keluarga',
+            importance: Importance.high,
+          ),
+        );
   }
 
   Future<bool> requestPermission() async =>
