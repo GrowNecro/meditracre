@@ -4,9 +4,9 @@ import 'package:http/http.dart' as http;
 
 abstract final class FirmwareUpdateService {
   static const latestReleaseUrl =
-      'https://github.com/GrowNecro/medbox/releases/latest';
+      'https://github.com/GrowNecro/meditracre/releases/latest';
   static const latestEsp32C3Url =
-      'https://github.com/GrowNecro/medbox/releases/latest/download/'
+      'https://github.com/GrowNecro/meditracre/releases/latest/download/'
       'meditrace-esp32-c3.bin';
 
   static Future<Uint8List> downloadLatestEsp32C3() async {
