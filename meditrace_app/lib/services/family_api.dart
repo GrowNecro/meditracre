@@ -105,20 +105,45 @@ class FamilyApi {
           .collection('groups')
           .where('memberUids', arrayContains: _uid)
           .get();
-      return {
-        'groups': [
-          for (final doc in snapshot.docs)
-            {
-              'id': int.parse(doc.id),
-              'name': doc.data()['name'],
-              'owner_id': doc.data()['ownerUid'],
-              'members_count': (doc.data()['memberUids'] as List?)?.length ?? 0,
-            },
-        ],
-      };
+      final groups = await Future.wait(
+        snapshot.docs.map((doc) async {
+          final data = doc.data();
+          final memberUids =
+              (data['memberUids'] as List?)?.whereType<String>() ?? [];
+          final members = await Future.wait(memberUids.map(_memberProfile));
+          return {
+            'id': int.parse(doc.id),
+            'name': data['name'],
+            'owner_id': data['ownerUid'],
+            'members_count': memberUids.length,
+            'members': [
+              for (var index = 0; index < memberUids.length; index++)
+                {
+                  ...members[index],
+                  'id': memberUids.elementAt(index),
+                  'is_owner': memberUids.elementAt(index) == data['ownerUid'],
+                },
+            ],
+          };
+        }),
+      );
+      return {'groups': groups};
     } on FirebaseException catch (error) {
       throw FamilyApiException(error.message ?? error.code);
     }
+  }
+
+  Future<Map<String, dynamic>> _memberProfile(String uid) async {
+    final snapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .get();
+    final data = snapshot.data() ?? {};
+    final email = data['email']?.toString();
+    return {
+      'name': data['name']?.toString() ?? email ?? 'Pengguna',
+      'email': email,
+    };
   }
 
   Future<Map<String, dynamic>> inbox() async {
@@ -137,6 +162,7 @@ class FamilyApi {
               'id': doc.id,
               'title': doc.data()['title'],
               'group_name': doc.data()['groupName'],
+              'sender_email': doc.data()['senderEmail'],
               'occurred_at': (doc.data()['occurredAt'] as Timestamp?)
                   ?.toDate()
                   .toLocal()
@@ -276,6 +302,8 @@ class FamilyApi {
         throw FamilyApiException(
           (result['error'] as String?) ??
               'Backend gagal (${response.statusCode}).',
+          requestId: result['requestId'] as String?,
+          detail: result['detail'] as String?,
         );
       }
       return result;
@@ -316,8 +344,18 @@ class FamilyApi {
 }
 
 class FamilyApiException implements Exception {
-  const FamilyApiException(this.message);
+  const FamilyApiException(this.message, {this.requestId, this.detail});
+
   final String message;
+  final String? requestId;
+  final String? detail;
+
   @override
-  String toString() => message;
+  String toString() {
+    final suffix = [
+      if (requestId != null) 'ID: $requestId',
+      if (detail != null && detail!.isNotEmpty) detail!,
+    ].join(' · ');
+    return suffix.isEmpty ? message : '$message ($suffix)';
+  }
 }

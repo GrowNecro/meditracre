@@ -154,6 +154,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
         type: 'BLE_DISCONNECTED',
         timestamp: now.subtract(const Duration(days: 1)),
       ),
+      DoseEvent(
+        type: 'BLE_CONNECTED',
+        timestamp: now.subtract(const Duration(days: 1, minutes: 3)),
+        status: 'RECONNECTED',
+      ),
     ];
   }
 
@@ -188,6 +193,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     'DOSE_CONFIRMED' => Icons.task_alt,
     'DOSE_CONFIRMATION_REVOKED' => Icons.undo,
     'DOSE_MISSED' => Icons.alarm_off,
+    'BLE_CONNECTED' => Icons.bluetooth_connected,
     'BLE_DISCONNECTED' ||
     'SEPARATION_PATIENT_WARNED' ||
     'SEPARATION_CAREGIVER_ESCALATED' ||
@@ -203,7 +209,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
       'SEPARATION_PATIENT_WARNED' ||
       'SEPARATION_CAREGIVER_ESCALATED' ||
       'MEDBOX_LEFT_BEHIND' => scheme.error,
-      'DOSE_CONFIRMED' || 'SEPARATION_FALSE_ALARM' => Colors.green.shade700,
+      'BLE_CONNECTED' ||
+      'DOSE_CONFIRMED' ||
+      'SEPARATION_FALSE_ALARM' => Colors.green.shade700,
       'DOSE_MISSED' || 'DOSE_CONFIRMATION_REVOKED' => Colors.orange.shade800,
       'DOSE_ALARM' => scheme.secondary,
       _ => scheme.primary,
@@ -220,6 +228,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
     'DOSE_CONFIRMED' => 'Obat diminum · ${_timingText(status)}',
     'DOSE_CONFIRMATION_REVOKED' => 'Konfirmasi minum dibatalkan',
     'DOSE_MISSED' => 'Jadwal obat terlewat',
+    'BLE_CONNECTED' =>
+      status == 'RECONNECTED'
+          ? 'MEDITRACE hidup kembali dan terhubung'
+          : 'MEDITRACE hidup dan terhubung',
     'BLE_DISCONNECTED' => 'Koneksi MEDITRACE terputus',
     'SEPARATION_PATIENT_WARNED' => 'Peringatan: MEDITRACE tidak terdeteksi',
     'SEPARATION_CAREGIVER_ESCALATED' => 'Peringatan dikirim ke keluarga',
@@ -269,6 +281,7 @@ class _FamilyAlertsSection extends StatelessWidget {
                 title: Text(item['title']?.toString() ?? 'Peringatan keluarga'),
                 subtitle: Text(
                   '${item['group_name'] ?? 'Keluarga'} · '
+                  '${item['sender_email'] ?? 'Email pengirim tidak tersedia'} · '
                   '${item['occurred_at'] ?? '-'}',
                 ),
                 trailing: item['acknowledged_at'] == null && alertId != null

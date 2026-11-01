@@ -17,6 +17,8 @@ class FamilyAlertRelay {
   int? _groupId;
 
   int? get groupId => _groupId;
+  Map<String, dynamic>? _lastDeliveryResult;
+  String? _lastError;
 
   Future<void> initialize() async {
     _groupId = int.tryParse(
@@ -31,14 +33,27 @@ class FamilyAlertRelay {
     await flush();
   }
 
-  Future<void> report({
+  Future<Map<String, dynamic>?> report({
     required String kind,
     required String title,
     String? details,
   }) async {
-    if (!await _api.hasSession) return;
+    _lastError = null;
+    _lastDeliveryResult = null;
+    if (!await _api.hasSession) {
+      return {'ok': false, 'error': 'Silakan login untuk mengirim peringatan.'};
+    }
     final groupId = await _resolveGroup();
-    if (groupId == null) return;
+    if (groupId == null) {
+      return {
+        'ok': false,
+        'error':
+            'Belum ada grup keluarga aktif. Pastikan undangan sudah diterima.',
+      };
+    }
+    // Grup dapat berubah setelah logout/login atau pembuatan ulang grup.
+    // Alert lama harus mengikuti grup aktif yang baru dibaca dari Firestore.
+    await _database.reassignPendingFamilyAlerts(groupId);
     await _database.queueFamilyAlert(
       clientEventId: _uuidV4(),
       groupId: groupId,
@@ -47,31 +62,45 @@ class FamilyAlertRelay {
       details: details,
     );
     await flush();
+    return _lastDeliveryResult ??
+        {
+          'ok': false,
+          'error': _lastError ?? 'Peringatan belum berhasil dikirim ke server.',
+        };
   }
 
   Future<int?> _resolveGroup() async {
-    if (_groupId != null) return _groupId;
     try {
       final me = await _api.me();
       final userId = (me['user'] as Map)['id'];
       final groups = (await _api.families())['groups'] as List? ?? [];
+      if (groups.isEmpty) return null;
+      final saved = _groupId;
+      if (saved != null && groups.any((item) => _groupIdOf(item) == saved)) {
+        return saved;
+      }
       final owned = groups.where((item) => (item as Map)['owner_id'] == userId);
-      if (owned.length != 1) return null;
-      final value = (owned.single as Map)['id'];
-      final id = switch (value) {
-        int value => value,
-        num value => value.toInt(),
-        String value => int.tryParse(value),
-        _ => null,
-      };
+      final selected = owned.length == 1 ? owned.single : groups.first;
+      final id = _groupIdOf(selected);
       if (id == null || id < 1) {
         throw StateError('ID grup keluarga tidak valid.');
       }
       await selectGroup(id);
       return id;
-    } catch (_) {
+    } catch (error) {
+      _lastError = 'Gagal membaca grup keluarga: $error';
       return null;
     }
+  }
+
+  int? _groupIdOf(Object? item) {
+    final value = item is Map ? item['id'] : null;
+    return switch (value) {
+      int value => value,
+      num value => value.toInt(),
+      String value => int.tryParse(value),
+      _ => null,
+    };
   }
 
   Future<void> flush() {
@@ -102,17 +131,19 @@ class FamilyAlertRelay {
     }
     for (final item in pending) {
       try {
-        await _api.sendDeviceAlert(
+        final result = await _api.sendDeviceAlert(
           item['group_id'] as int,
           kind: item['kind'] as String,
           title: item['title'] as String,
           details: item['details'] as String?,
           clientEventId: item['client_event_id'] as String,
         );
+        _lastDeliveryResult = result;
         await _database.removePendingFamilyAlert(
           item['client_event_id'] as String,
         );
-      } catch (_) {
+      } catch (error) {
+        _lastError = 'Gagal mengirim peringatan: $error';
         // Pertahankan urutan dan coba lagi saat aplikasi kembali aktif.
         break;
       }

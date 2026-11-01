@@ -105,6 +105,11 @@ class LocalDatabase {
     return db.query('pending_family_alerts', orderBy: 'created_at ASC');
   }
 
+  Future<void> reassignPendingFamilyAlerts(int groupId) async {
+    final db = await database;
+    await db.update('pending_family_alerts', {'group_id': groupId});
+  }
+
   Future<void> removePendingFamilyAlert(String clientEventId) async {
     final db = await database;
     await db.delete(

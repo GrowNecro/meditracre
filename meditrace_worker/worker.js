@@ -33,6 +33,21 @@ const pemBytes = (pem) => {
   }
 };
 const sha256 = async (text) => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', enc.encode(text)))).map(x => x.toString(16).padStart(2,'0')).join('');
+async function withRetry(operation, label, attempts = 3) {
+  let lastError;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+      if (attempt < attempts) {
+        await new Promise((resolve) => setTimeout(resolve, 150 * 2 ** (attempt - 1)));
+      }
+    }
+  }
+  console.error(`${label} gagal setelah ${attempts} percobaan`, lastError);
+  throw lastError;
+}
 
 async function verifyFirebase(request, env) {
   const token = request.headers.get('authorization')?.match(/^Bearer\s+(.+)$/)?.[1];
@@ -47,22 +62,6 @@ async function verifyFirebase(request, env) {
         jwt.payload.iss !== `https://securetoken.google.com/${project}` || 
         jwt.payload.exp * 1000 < Date.now()) {
       throw new Response(JSON.stringify({error:'Sesi tidak valid. Silakan masuk ulang.'}), {status:401});
-    }
-
-    async function withRetry(operation, label, attempts = 3) {
-      let lastError;
-      for (let attempt = 1; attempt <= attempts; attempt++) {
-        try {
-          return await operation();
-        } catch (error) {
-          lastError = error;
-          if (attempt < attempts) {
-            await new Promise((resolve) => setTimeout(resolve, 150 * 2 ** (attempt - 1)));
-          }
-        }
-      }
-      console.error(`${label} gagal setelah ${attempts} percobaan`, lastError);
-      throw lastError;
     }
 
     return jwt.payload;
@@ -174,6 +173,20 @@ async function firestoreList(env, path) {
   return (result.documents || []).map((document) => firestoreObject(document.fields));
 }
 
+async function firestoreListDocuments(env, path) {
+  const access = await googleAccessToken(env);
+  const response = await fetch(
+    `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/${path}`,
+    {headers: {authorization: `Bearer ${access}`}},
+  );
+  if (!response.ok) throw new Error('Firestore tidak dapat membaca daftar data.');
+  const result = await response.json();
+  return (result.documents || []).map((document) => ({
+    id: document.name.split('/').pop(),
+    data: firestoreObject(document.fields),
+  }));
+}
+
 const cleanText = (value, field, maxLength = 160) => {
   if (typeof value !== 'string' || !value.trim()) throw new Error(`${field} wajib diisi.`);
   return value.trim().slice(0, maxLength);
@@ -189,6 +202,29 @@ async function groupForMember(env, groupId, uid) {
     throw new Error('Anda bukan anggota grup ini.');
   }
   return group.data;
+}
+
+async function groupForMemberFromFirestore(env, uid, preferredGroupId) {
+  if (preferredGroupId != null) {
+    try {
+      return {
+        id: preferredGroupId,
+        data: await groupForMember(env, preferredGroupId, uid),
+      };
+    } catch (error) {
+      console.warn('ID grup dari aplikasi tidak tersedia, mencari ulang', error);
+    }
+  }
+  const groups = await firestoreListDocuments(env, 'groups');
+  const match = groups.find((group) =>
+    Array.isArray(group.data.memberUids) && group.data.memberUids.includes(uid),
+  );
+  if (!match) throw new Error('Grup keluarga tidak ditemukan.');
+  const groupId = Number(match.id);
+  if (!Number.isSafeInteger(groupId)) {
+    throw new Error('ID grup keluarga tidak valid.');
+  }
+  return {id: groupId, data: match.data};
 }
 
 async function createFamily(env, user, data) {
@@ -305,20 +341,39 @@ async function unregisterDevice(env, user, data) {
 }
 
 async function sendAlert(env, user, data) {
-  const groupId = Number(data.groupId);
-  const group = await groupForMember(env, groupId, user.sub);
+  const requestedGroupId = Number(data.groupId);
+  const resolvedGroup = await groupForMemberFromFirestore(
+    env,
+    user.sub,
+    Number.isSafeInteger(requestedGroupId) ? requestedGroupId : null,
+  );
+  const groupId = resolvedGroup.id;
+  const group = resolvedGroup.data;
   const title = cleanText(data.title, 'Judul peringatan');
   const clientEventId = cleanText(data.clientEventId, 'ID kejadian', 200);
   const alertId = `${groupId}-${clientEventId}`;
   const alert = await firestoreGet(env, `groups/${groupId}/events/${encodeURIComponent(alertId)}`, {optional: true});
   if (alert) return {ok: true, duplicate: true};
   const details = typeof data.details === 'string' ? data.details.slice(0, 1000) : null;
+  const senderProfile = await firestoreGet(
+    env,
+    `users/${encodeURIComponent(user.sub)}`,
+    {optional: true},
+  );
+  const registeredSenderEmail = senderProfile?.data?.email;
+  const senderEmail = typeof registeredSenderEmail === 'string' &&
+      registeredSenderEmail.includes('@')
+    ? registeredSenderEmail
+    : (typeof user.email === 'string' && user.email.includes('@')
+        ? user.email
+        : null);
   const now = new Date().toISOString();
   await firestore(env, `groups/${groupId}/events/${encodeURIComponent(alertId)}`, {
     method: 'PATCH',
     body: JSON.stringify({fields: {
       title: firestoreField(title), kind: firestoreField(typeof data.kind === 'string' ? data.kind : 'manual'),
-      details: firestoreField(details), senderUid: firestoreField(user.sub), occurredAt: {timestampValue: now},
+      details: firestoreField(details), senderUid: firestoreField(user.sub),
+      senderEmail: firestoreField(senderEmail), occurredAt: {timestampValue: now},
     }}),
   });
   for (const uid of group.memberUids) {
@@ -326,7 +381,8 @@ async function sendAlert(env, user, data) {
       method: 'PATCH',
       body: JSON.stringify({fields: {
         title: firestoreField(title), groupName: firestoreField(group.name), groupId: firestoreField(groupId),
-        details: firestoreField(details), occurredAt: {timestampValue: now}, acknowledgedAt: firestoreField(null),
+        details: firestoreField(details), senderEmail: firestoreField(senderEmail),
+        occurredAt: {timestampValue: now}, acknowledgedAt: firestoreField(null),
       }}),
     });
   }
@@ -348,7 +404,11 @@ async function sendAlert(env, user, data) {
   ));
   pushResults.filter((result) => result.status === 'rejected')
     .forEach((result) => console.error('FCM caregiver gagal', result.reason));
-  const emailKinds = new Set(['separation_escalation', 'medbox_left_behind']);
+  const emailKinds = new Set([
+    'separation_escalation',
+    'medbox_left_behind',
+    'dose_status',
+  ]);
   if (emailKinds.has(data.kind)) {
     const emailResults = await Promise.allSettled(group.memberUids
       .filter((uid) => uid !== user.sub).map(async (uid) => {
@@ -359,14 +419,33 @@ async function sendAlert(env, user, data) {
           env,
           email,
           title,
-          `${escapeHtml(details || title)}<br><br>Buka aplikasi MEDITRACE untuk melihat dan menangani peringatan ini.`,
+          `<strong>Pengirim:</strong> ${escapeHtml(senderEmail || 'Email tidak tersedia')}<br><br>` +
+          `${escapeHtml(details || title)}<br><br>` +
+          `Buka aplikasi MEDITRACE untuk melihat dan menangani peringatan ini.`,
         ), 'Email caregiver');
+        return true;
       }
+      return false;
     }));
     emailResults.filter((result) => result.status === 'rejected')
       .forEach((result) => console.error('Email caregiver gagal', result.reason));
+    return {
+      ok: true,
+      pushSent: pushResults.filter((result) => result.status === 'fulfilled').length,
+      pushFailed: pushResults.filter((result) => result.status === 'rejected').length,
+      emailSent: emailResults.filter(
+        (result) => result.status === 'fulfilled' && result.value === true,
+      ).length,
+      emailFailed: emailResults.filter((result) => result.status === 'rejected').length,
+    };
   }
-  return {ok: true};
+  return {
+    ok: true,
+    pushSent: pushResults.filter((result) => result.status === 'fulfilled').length,
+    pushFailed: pushResults.filter((result) => result.status === 'rejected').length,
+    emailSent: 0,
+    emailFailed: 0,
+  };
 }
 
 async function acknowledgeAlert(env, user, data) {
@@ -478,6 +557,13 @@ export default { async fetch(request, env) {
     return json({ok:true});
   } catch (error) {
     if (error instanceof Response) return error;
-    console.error(error); return json({error:'Server sedang bermasalah.'},500);
+    const requestId = crypto.randomUUID();
+    const detail = error instanceof Error ? error.message : String(error);
+    console.error(`[${requestId}] ${url.pathname}`, detail);
+    return json({
+      error: 'Server sedang bermasalah.',
+      requestId,
+      detail: url.pathname === '/v1/sendAlert' ? detail : undefined,
+    }, 500);
   }
 }};

@@ -320,18 +320,41 @@ class AppProvider extends ChangeNotifier {
     );
   }
 
-  Future<void> setDoseConfirmed(MedicationSchedule schedule, bool confirmed) =>
-      addEvent(
-        DoseEvent(
-          type: confirmed ? 'DOSE_CONFIRMED' : 'DOSE_CONFIRMATION_REVOKED',
-          timestamp: DateTime.now(),
-          scheduleId: schedule.id,
-          sensorId: schedule.compartmentNumber,
-          status: confirmed
-              ? doseTimingStatus(schedule, now: DateTime.now())
-              : 'DIBATALKAN',
+  Future<void> setDoseConfirmed(
+    MedicationSchedule schedule,
+    bool confirmed,
+  ) async {
+    final now = DateTime.now();
+    final status = confirmed
+        ? doseTimingStatus(schedule, now: now)
+        : 'DIBATALKAN';
+    await addEvent(
+      DoseEvent(
+        type: confirmed ? 'DOSE_CONFIRMED' : 'DOSE_CONFIRMATION_REVOKED',
+        timestamp: now,
+        scheduleId: schedule.id,
+        sensorId: schedule.compartmentNumber,
+        status: status,
+      ),
+    );
+    if (confirmed) {
+      unawaited(
+        familyAlerts.report(
+          kind: 'dose_status',
+          title: 'Status obat: sudah diminum',
+          details:
+              'Obat pada jadwal ${schedule.label} tercatat sudah diminum (${_timingLabel(status)}).',
         ),
       );
+    }
+  }
+
+  String _timingLabel(String status) => switch (status) {
+    'EARLY' => 'lebih cepat',
+    'ON_TIME' => 'tepat waktu',
+    'LATE' => 'terlambat',
+    _ => 'tercatat',
+  };
 
   String doseTimingStatus(MedicationSchedule schedule, {DateTime? now}) {
     final localNow = (now ?? DateTime.now()).toLocal();
@@ -386,7 +409,8 @@ class AppProvider extends ChangeNotifier {
             effectiveDue.add(const Duration(minutes: missedGraceMinutes)),
           ) &&
           !doseConfirmedToday(schedule.id) &&
-          !doseMissedToday(schedule.id, now: localNow)) {
+      !hasDoseRemovedTodayFor(schedule, now: localNow) &&
+      !doseMissedToday(schedule.id, now: localNow)) {
         await addEvent(
           DoseEvent(
             type: 'DOSE_MISSED',

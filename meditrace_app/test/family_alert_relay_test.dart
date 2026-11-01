@@ -70,6 +70,13 @@ class _MemoryDatabase extends LocalDatabase {
       List.of(pending);
 
   @override
+  Future<void> reassignPendingFamilyAlerts(int groupId) async {
+    for (final item in pending) {
+      item['group_id'] = groupId;
+    }
+  }
+
+  @override
   Future<void> removePendingFamilyAlert(String clientEventId) async {
     pending.removeWhere((item) => item['client_event_id'] == clientEventId);
   }

@@ -34,6 +34,14 @@ class BleProvider extends ChangeNotifier {
             connectionState == MeditraceConnectionState.connected;
         connectionState = value;
         if (value == MeditraceConnectionState.connected) {
+          if (!wasConnected) {
+            unawaited(
+              _recordConnectionEvent(
+                'BLE_CONNECTED',
+                _disconnectedAt == null ? 'CONNECTED' : 'RECONNECTED',
+              ),
+            );
+          }
           _manualDisconnect = false;
           _recordFalseAlarmIfNeeded();
           _patientSeparationTimer?.cancel();
@@ -52,17 +60,14 @@ class BleProvider extends ChangeNotifier {
           _dummySignalOverride = null;
           sensorValid = null;
           lastSensorUpdate = null;
+          _disconnectedAt = DateTime.now();
+          unawaited(
+            _recordConnectionEvent(
+              'BLE_DISCONNECTED',
+              _manualDisconnect ? 'MANUAL_DISCONNECT' : 'MONITORING_STARTED',
+            ),
+          );
           if (!_manualDisconnect) {
-            _disconnectedAt = DateTime.now();
-            unawaited(
-              _app.addEvent(
-                DoseEvent(
-                  type: 'BLE_DISCONNECTED',
-                  timestamp: _disconnectedAt!,
-                  status: 'MONITORING_STARTED',
-                ),
-              ),
-            );
             _schedulePatientSeparationAlert();
             _scheduleFamilySeparationAlert();
             unawaited(
@@ -522,10 +527,20 @@ class BleProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> reportMedboxLeftBehind() async {
+  Future<void> _recordConnectionEvent(String type, String status) async {
+    try {
+      await _app.addEvent(
+        DoseEvent(type: type, timestamp: DateTime.now(), status: status),
+      );
+    } catch (_) {
+      // Koneksi tetap berjalan jika penyimpanan riwayat belum siap.
+    }
+  }
+
+  Future<Map<String, dynamic>?> reportMedboxLeftBehind() async {
     final now = DateTime.now();
     try {
-      await _app.familyAlerts.report(
+      final result = await _app.familyAlerts.report(
         kind: 'medbox_left_behind',
         title: 'Pasien melaporkan MEDITRACE tertinggal',
         details: 'Pasien mengonfirmasi bahwa kotak obat MEDITRACE tertinggal.',
@@ -537,8 +552,13 @@ class BleProvider extends ChangeNotifier {
           status: 'ESCALATED_IMMEDIATELY',
         ),
       );
+      return result;
     } catch (_) {
       // Relay akan mencoba ulang ketika koneksi internet tersedia.
+      return {
+        'ok': false,
+        'error': 'Peringatan gagal dikirim. Periksa login dan grup keluarga.',
+      };
     }
   }
 
@@ -611,6 +631,7 @@ class BleProvider extends ChangeNotifier {
         final taken = _app.doseTakenFromRemoval(event);
         unawaited(_app.addEvent(taken));
         unawaited(_showDoseTakenAlertSafely(taken));
+        unawaited(_reportDoseConfirmed(taken));
       } else {
         unawaited(_app.addEvent(event));
       }
@@ -618,6 +639,19 @@ class BleProvider extends ChangeNotifier {
       unawaited(
         _app.addEvent(DoseEvent(type: payload, timestamp: DateTime.now())),
       );
+    }
+  }
+
+  Future<void> _reportDoseConfirmed(DoseEvent event) async {
+    try {
+      await _app.familyAlerts.report(
+        kind: 'dose_status',
+        title: 'Status obat: sudah diminum',
+        details:
+            'Obat pada ruang ${event.sensorId ?? '-'} tercatat sudah diminum (${event.status}).',
+      );
+    } catch (_) {
+      // Riwayat lokal tetap tersimpan jika relay keluarga belum tersedia.
     }
   }
 

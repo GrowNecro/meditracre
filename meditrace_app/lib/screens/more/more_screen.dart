@@ -60,7 +60,6 @@ class _MoreScreenState extends State<MoreScreen> {
         ],
       ),
     );
-    widget.onInviteConsumed?.call();
   }
 
   void _showFamilyJoin(String code) {
@@ -296,6 +295,7 @@ class _MoreScreenState extends State<MoreScreen> {
                   key: ValueKey('${_signedIn}_${widget.inviteCode}'),
                   embedded: true,
                   initialInviteCode: widget.inviteCode,
+                  onInviteConsumed: widget.onInviteConsumed,
                 ),
               ],
             ),
@@ -317,7 +317,23 @@ class _MoreScreenState extends State<MoreScreen> {
                     child: SizedBox(
                       width: double.infinity,
                       child: OutlinedButton.icon(
-                        onPressed: ble.reportMedboxLeftBehind,
+                        onPressed: () async {
+                          final result = await ble.reportMedboxLeftBehind();
+                          if (!context.mounted) return;
+                          final emailSent = result?['emailSent'] as int? ?? 0;
+                          final emailFailed =
+                              result?['emailFailed'] as int? ?? 0;
+                          final error = result?['error']?.toString();
+                          final message =
+                              error ??
+                              (emailFailed > 0
+                                  ? 'Peringatan tersimpan, tetapi email caregiver gagal dikirim.'
+                                  : emailSent > 0
+                                  ? 'Peringatan dikirim ke $emailSent email caregiver.'
+                                  : 'Peringatan tersimpan dan sedang diproses untuk caregiver.');
+                          ScaffoldMessenger.of(context)
+                              .showSnackBar(SnackBar(content: Text(message)));
+                        },
                         icon: const Icon(Icons.warning_amber_rounded),
                         label: const Text('Saya meninggalkan MEDITRACE'),
                       ),

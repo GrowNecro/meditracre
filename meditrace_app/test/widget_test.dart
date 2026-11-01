@@ -341,6 +341,37 @@ void main() {
     expect(database.events.single.type, 'DOSE_MISSED');
   });
 
+  test(
+    'pengambilan sensor mencegah status missed saat isi ulang terlambat',
+    () async {
+      final database = _MemoryLocalDatabase();
+      final app = AppProvider(database: database);
+      const schedule = MedicationSchedule(
+        id: 92,
+        label: 'Vitamin siang',
+        hour: 8,
+        minute: 0,
+        compartmentNumber: 2,
+      );
+      app.schedules = [schedule];
+      await app.addEvent(
+        DoseEvent(
+          type: 'DOSE_REMOVED',
+          timestamp: DateTime(2026, 10, 24, 8, 5),
+          sensorId: 2,
+        ),
+      );
+
+      await app.refreshMissedDoses(now: DateTime(2026, 10, 24, 10, 1));
+
+      expect(
+        app.doseMissedToday(schedule.id, now: DateTime(2026, 10, 24)),
+        isFalse,
+      );
+      expect(database.events, hasLength(1));
+    },
+  );
+
   test('jadwal baru setelah tengah malam menunggu hari berikutnya', () async {
     final database = _MemoryLocalDatabase();
     final app = AppProvider(database: database);

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -10,10 +12,12 @@ class FamilyScreen extends StatefulWidget {
     super.key,
     this.embedded = false,
     this.initialInviteCode,
+    this.onInviteConsumed,
   });
 
   final bool embedded;
   final String? initialInviteCode;
+  final VoidCallback? onInviteConsumed;
 
   @override
   State<FamilyScreen> createState() => _FamilyScreenState();
@@ -28,20 +32,42 @@ class _FamilyScreenState extends State<FamilyScreen> {
   String? _userId;
   List<dynamic> _families = [];
   int? _activeGroupId;
+  String? _pendingInviteCode;
+  bool _joiningInvite = false;
 
   @override
   void initState() {
     super.initState();
-    _refresh();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final code = widget.initialInviteCode;
-      if (code != null) _joinWithCode(code);
-    });
+    _pendingInviteCode = widget.initialInviteCode;
+    unawaited(_initialize());
   }
 
-  Future<void> _joinWithCode(String code) async {
-    if (!mounted) return;
-    await _run(() => _api.joinFamily(code));
+  Future<void> _initialize() async {
+    await _refresh();
+    await _consumePendingInvite();
+  }
+
+  Future<void> _consumePendingInvite() async {
+    final code = _pendingInviteCode;
+    if (!mounted ||
+        code == null ||
+        !_signedIn ||
+        !_api.backendConfigured ||
+        _joiningInvite) {
+      return;
+    }
+    _joiningInvite = true;
+    _pendingInviteCode = null;
+    try {
+      await _run(() => _api.joinFamily(code));
+      if (_error == null) {
+        widget.onInviteConsumed?.call();
+      } else {
+        _pendingInviteCode = code;
+      }
+    } finally {
+      _joiningInvite = false;
+    }
   }
 
   @override
@@ -79,8 +105,12 @@ class _FamilyScreenState extends State<FamilyScreen> {
       final ownedGroups = (families['groups'] as List? ?? [])
           .where((item) => (item as Map)['owner_id'] == ownerId)
           .toList();
-      if (relay.groupId == null && ownedGroups.isNotEmpty) {
-        await relay.selectGroup(_groupId(ownedGroups.first));
+      if (relay.groupId == null &&
+          (families['groups'] as List? ?? []).isNotEmpty) {
+        final groups = families['groups'] as List;
+        await relay.selectGroup(
+          _groupId(ownedGroups.isNotEmpty ? ownedGroups.first : groups.first),
+        );
       }
       if (!mounted) return;
       setState(() {
@@ -140,6 +170,7 @@ class _FamilyScreenState extends State<FamilyScreen> {
     try {
       await action();
       await _refresh(showLoading: false);
+      await _consumePendingInvite();
     } catch (error) {
       if (mounted) {
         setState(() => _error = error.toString());
@@ -401,7 +432,8 @@ class _FamilyScreenState extends State<FamilyScreen> {
               ),
             for (final item in _families)
               Card(
-                child: ListTile(
+                child: ExpansionTile(
+                  controlAffinity: ListTileControlAffinity.leading,
                   title: Text((item as Map)['name'].toString()),
                   subtitle: Text('${item['members_count']} anggota'),
                   trailing: item['owner_id'] != _userId
@@ -433,6 +465,25 @@ class _FamilyScreenState extends State<FamilyScreen> {
                             ),
                           ],
                         ),
+                  children: [
+                    for (final member in (item['members'] as List? ?? []))
+                      ListTile(
+                        dense: true,
+                        leading: Icon(
+                          member['is_owner'] == true
+                              ? Icons.star_outline
+                              : Icons.person_outline,
+                        ),
+                        title: Text(member['name']?.toString() ?? 'Pengguna'),
+                        subtitle: Text(
+                          member['email']?.toString() ??
+                              'Email belum terdaftar',
+                        ),
+                        trailing: member['is_owner'] == true
+                            ? const Text('Pemilik')
+                            : null,
+                      ),
+                  ],
                 ),
               ),
             OutlinedButton(
