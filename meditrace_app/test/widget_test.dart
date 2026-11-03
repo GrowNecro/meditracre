@@ -341,6 +341,96 @@ void main() {
     expect(database.events.single.type, 'DOSE_MISSED');
   });
 
+  test('satu jadwal tidak mencatat konfirmasi atau email ganda', () async {
+    final database = _MemoryLocalDatabase();
+    final app = AppProvider(database: database);
+    final schedule = MedicationSchedule(
+      id: 93,
+      label: 'Vitamin malam',
+      hour: DateTime.now().hour,
+      minute: DateTime.now().minute,
+      compartmentNumber: 1,
+    );
+    app.schedules = [schedule];
+    final event = DoseEvent(
+      type: 'DOSE_CONFIRMED',
+      timestamp: DateTime.now(),
+      scheduleId: schedule.id,
+      sensorId: 1,
+      status: 'ON_TIME',
+    );
+
+    expect(await app.addEvent(event), isTrue);
+    expect(await app.addEvent(event), isFalse);
+    expect(
+      database.events.where((item) => item.type == 'DOSE_CONFIRMED'),
+      hasLength(1),
+    );
+    app.dispose();
+  });
+
+  test('obat dikembalikan dalam 15 menit membatalkan konfirmasi', () async {
+    final database = _MemoryLocalDatabase();
+    final app = AppProvider(database: database);
+    final nowForTest = DateTime.now();
+    final timestamp = DateTime(
+      nowForTest.year,
+      nowForTest.month,
+      nowForTest.day,
+      17,
+      0,
+    );
+    await app.addEvent(
+      DoseEvent(
+        type: 'DOSE_CONFIRMED',
+        timestamp: timestamp,
+        scheduleId: 94,
+        sensorId: 1,
+        status: 'ON_TIME',
+      ),
+    );
+
+    final revoked = await app.handleCompartmentRefilled(
+      1,
+      timestamp.add(const Duration(minutes: 15)),
+    );
+
+    expect(revoked, isTrue);
+    expect(app.doseConfirmedToday(94), isFalse);
+    expect(database.events.last.type, 'DOSE_CONFIRMATION_REVOKED');
+  });
+
+  test('pengisian setelah 15 menit mempertahankan konfirmasi lama', () async {
+    final database = _MemoryLocalDatabase();
+    final app = AppProvider(database: database);
+    final nowForTest = DateTime.now();
+    final timestamp = DateTime(
+      nowForTest.year,
+      nowForTest.month,
+      nowForTest.day,
+      17,
+      0,
+    );
+    await app.addEvent(
+      DoseEvent(
+        type: 'DOSE_CONFIRMED',
+        timestamp: timestamp,
+        scheduleId: 95,
+        sensorId: 1,
+        status: 'ON_TIME',
+      ),
+    );
+
+    final revoked = await app.handleCompartmentRefilled(
+      1,
+      timestamp.add(const Duration(minutes: 16)),
+    );
+
+    expect(revoked, isFalse);
+    expect(app.doseConfirmedToday(95), isTrue);
+    expect(database.events, hasLength(1));
+  });
+
   test(
     'pengambilan sensor mencegah status missed saat isi ulang terlambat',
     () async {

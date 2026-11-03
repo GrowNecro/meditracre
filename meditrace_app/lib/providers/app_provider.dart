@@ -160,14 +160,24 @@ class AppProvider extends ChangeNotifier {
     );
   }
 
-  Future<void> addEvent(DoseEvent event) async {
-    await _database.addEvent(event);
+  Future<bool> addEvent(DoseEvent event) async {
+    if (event.type == 'DOSE_CONFIRMED' &&
+        event.scheduleId != null &&
+        _doseConfirmedOnDate(event.scheduleId!, event.timestamp)) {
+      return false;
+    }
     history = [event, ...history].take(100).toList();
     notifyListeners();
+    await _database.addEvent(event);
+    return true;
   }
 
   bool doseConfirmedToday(int scheduleId) {
-    final now = DateTime.now();
+    return _doseConfirmedOnDate(scheduleId, DateTime.now());
+  }
+
+  bool _doseConfirmedOnDate(int scheduleId, DateTime date) {
+    final localDate = date.toLocal();
     for (final event in history) {
       if (event.scheduleId != scheduleId ||
           (event.type != 'DOSE_CONFIRMED' &&
@@ -175,9 +185,9 @@ class AppProvider extends ChangeNotifier {
         continue;
       }
       final time = event.timestamp.toLocal();
-      if (time.year == now.year &&
-          time.month == now.month &&
-          time.day == now.day) {
+      if (time.year == localDate.year &&
+          time.month == localDate.month &&
+          time.day == localDate.day) {
         return event.type == 'DOSE_CONFIRMED';
       }
     }
@@ -225,6 +235,36 @@ class AppProvider extends ChangeNotifier {
           ? event.status
           : _doseTimingStatusAt(schedule, event.timestamp.toLocal()),
     );
+  }
+
+  Future<bool> handleCompartmentRefilled(
+    int compartment,
+    DateTime returnedAt,
+  ) async {
+    DoseEvent? confirmed;
+    for (final event in history) {
+      if (event.type == 'DOSE_CONFIRMED' && event.sensorId == compartment) {
+        confirmed = event;
+        break;
+      }
+    }
+    if (confirmed == null) return false;
+    final elapsed = returnedAt.difference(confirmed.timestamp).abs();
+    if (elapsed > const Duration(minutes: 15)) return false;
+    if (confirmed.scheduleId != null &&
+        !_doseConfirmedOnDate(confirmed.scheduleId!, confirmed.timestamp)) {
+      return false;
+    }
+    await addEvent(
+      DoseEvent(
+        type: 'DOSE_CONFIRMATION_REVOKED',
+        timestamp: returnedAt,
+        sensorId: compartment,
+        scheduleId: confirmed.scheduleId,
+        status: 'DIKEMBALIKAN_DALAM_15_MENIT',
+      ),
+    );
+    return true;
   }
 
   MedicationSchedule? _scheduleForDoseEvent(DoseEvent event) {
@@ -328,7 +368,7 @@ class AppProvider extends ChangeNotifier {
     final status = confirmed
         ? doseTimingStatus(schedule, now: now)
         : 'DIBATALKAN';
-    await addEvent(
+    final recorded = await addEvent(
       DoseEvent(
         type: confirmed ? 'DOSE_CONFIRMED' : 'DOSE_CONFIRMATION_REVOKED',
         timestamp: now,
@@ -337,7 +377,7 @@ class AppProvider extends ChangeNotifier {
         status: status,
       ),
     );
-    if (confirmed) {
+    if (confirmed && recorded) {
       unawaited(
         familyAlerts.report(
           kind: 'dose_status',
@@ -409,8 +449,8 @@ class AppProvider extends ChangeNotifier {
             effectiveDue.add(const Duration(minutes: missedGraceMinutes)),
           ) &&
           !doseConfirmedToday(schedule.id) &&
-      !hasDoseRemovedTodayFor(schedule, now: localNow) &&
-      !doseMissedToday(schedule.id, now: localNow)) {
+          !hasDoseRemovedTodayFor(schedule, now: localNow) &&
+          !doseMissedToday(schedule.id, now: localNow)) {
         await addEvent(
           DoseEvent(
             type: 'DOSE_MISSED',

@@ -20,6 +20,8 @@ class DeviceScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final ble = context.watch<BleProvider>();
     final connected = ble.connectionState == MeditraceConnectionState.connected;
+    final connecting =
+        ble.connectionState == MeditraceConnectionState.connecting;
     final content = ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -29,12 +31,24 @@ class DeviceScreen extends StatelessWidget {
               : Theme.of(context).colorScheme.errorContainer,
           child: ListTile(
             leading: Icon(
-              connected ? Icons.bluetooth_connected : Icons.bluetooth_disabled,
+              connected
+                  ? Icons.bluetooth_connected
+                  : connecting
+                  ? Icons.bluetooth_searching
+                  : Icons.bluetooth_disabled,
             ),
             title: Text(
-              connected ? 'MEDITRACE terhubung' : 'MEDITRACE belum terhubung',
+              connected
+                  ? 'MEDITRACE terhubung'
+                  : connecting
+                  ? 'Menghubungkan MEDITRACE'
+                  : 'MEDITRACE belum terhubung',
             ),
-            subtitle: Text(ble.deviceInfo?.deviceName ?? 'Tidak ada MEDITRACE'),
+            subtitle: Text(
+              connecting
+                  ? 'Mohon tunggu sebentar...'
+                  : ble.deviceInfo?.deviceName ?? 'Tidak ada MEDITRACE',
+            ),
           ),
         ),
         const SizedBox(height: 12),

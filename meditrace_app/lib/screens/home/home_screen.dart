@@ -47,41 +47,62 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: const Text('MEDITRACE'),
-      actions: [
-        Padding(
-          padding: const EdgeInsets.only(right: 16),
-          child: CircleAvatar(
-            radius: 24,
-            backgroundColor: Theme.of(context)
-                .colorScheme
-                .surfaceContainerHighest,
-            child: IconButton(
-              icon: const Icon(Icons.help_outline, size: 28),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const MedicationGuideScreen(),
-                  ),
-                );
-              },
+    appBar: _index == 0
+        ? AppBar(
+            titleSpacing: 12,
+            title: Row(
+              spacing: 6,
+              children: [
+                Image.asset(
+                  'assets/images/meditrace_logo_transparent.png',
+                  width: 32,
+                  height: 32,
+                  fit: BoxFit.contain,
+                  semanticLabel: 'Logo MEDITRACE',
+                ),
+                const SizedBox(width: 6),
+                const Flexible(
+                  child: Text('MEDITRACE', overflow: TextOverflow.ellipsis),
+                ),
+              ],
             ),
-          ),
-        ),
-      ],
-    ),
-    body: IndexedStack(
-      index: _index,
+            actions: [
+              Padding(
+                padding: const EdgeInsets.only(right: 16),
+                child: CircleAvatar(
+                  radius: 24,
+                  backgroundColor: Theme.of(context)
+                      .colorScheme
+                      .surfaceContainerHighest,
+                  child: IconButton(
+                    icon: const Icon(Icons.help_outline, size: 28),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const MedicationGuideScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ],
+          )
+        : null,
+    body: Stack(
+      fit: StackFit.expand,
       children: [
-        _Dashboard(),
-        MedicationScreen(),
-        HistoryScreen(),
-        DeviceScreen(embedded: true),
-        MoreScreen(
-          inviteCode: widget.inviteCode,
-          onInviteConsumed: widget.onInviteConsumed,
+        _buildTabContent(0, const _Dashboard()),
+        _buildTabContent(1, const MedicationScreen()),
+        _buildTabContent(2, const HistoryScreen()),
+        _buildTabContent(3, const DeviceScreen(embedded: true)),
+        _buildTabContent(
+          4,
+          MoreScreen(
+            inviteCode: widget.inviteCode,
+            onInviteConsumed: widget.onInviteConsumed,
+          ),
         ),
       ],
     ),
@@ -117,6 +138,29 @@ class _HomeScreenState extends State<HomeScreen> {
       ],
     ),
   );
+
+  Widget _buildTabContent(int index, Widget child) {
+    final selected = _index == index;
+    return Offstage(
+      offstage: !selected,
+      child: IgnorePointer(
+        ignoring: !selected,
+        child: AnimatedOpacity(
+          opacity: selected ? 1 : 0,
+          duration: const Duration(milliseconds: 280),
+          curve: Curves.easeInOut,
+          child: AnimatedSlide(
+            offset: selected
+                ? Offset.zero
+                : Offset(index > _index ? 0.04 : -0.04, 0),
+            duration: const Duration(milliseconds: 280),
+            curve: Curves.easeOutCubic,
+            child: child,
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _Dashboard extends StatelessWidget {
@@ -160,7 +204,17 @@ class _Dashboard extends StatelessWidget {
         : Icons.battery_full;
 
     return RefreshIndicator(
-      onRefresh: connected ? ble.refresh : () async {},
+      onRefresh: connected
+          ? ble.refresh
+          : () async {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'Hubungkan MEDITRACE untuk memperbarui kondisi.',
+                  ),
+                ),
+              );
+            },
       child: ListView(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
         children: [

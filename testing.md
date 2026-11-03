@@ -14,10 +14,10 @@ Testing Package A evaluates the ability of MEDITRACE to detect medication-relate
 | 1 | A1.2 | Remove medication from compartment 1. | The system detects the change in medication presence. |
 | 1 | A1.3 | Operate the compartment limit switch. | The system records the corresponding compartment state change. |
 | 1 | A1.4 | Repeat the detection procedure for compartments 2–5. | Each compartment is detected independently. |
-| 2 | A2.1 | Perform medication retrieval before the scheduled time. | The application classifies the event as early. |
-| 2 | A2.2 | Perform medication retrieval within the scheduled time window. | The application classifies the event as on-time. |
-| 2 | A2.3 | Perform medication retrieval after the scheduled time window. | The application classifies the event as late. |
-| 2 | A2.4 | Do not perform medication retrieval within the defined observation period. | The application classifies the dose as missed. |
+| 2 | A2.1 | For a new dose, perform medication retrieval before the scheduled time. | The application classifies that dose as early. |
+| 2 | A2.2 | For a separate new dose on another test day, perform medication retrieval within the scheduled time window. | The application classifies that dose as on-time. |
+| 2 | A2.3 | For a separate new dose on another test day, perform medication retrieval after the scheduled time window. | The application classifies that dose as late. |
+| 2 | A2.4 | For a separate new dose, do not perform medication retrieval within the defined observation period. | The application classifies that dose as missed. |
 | 3 | A3.1 | Perform a medication retrieval event and check the application history. | The event is recorded with the corresponding timestamp. |
 | 3 | A3.2 | Perform multiple retrieval events. | Each event is recorded without unintended duplication. |
 | 4 | A4.1 | Leave a compartment empty before the scheduled refill reminder. | The application identifies the compartment as requiring a refill. |
@@ -26,7 +26,14 @@ Testing Package A evaluates the ability of MEDITRACE to detect medication-relate
 | 5 | A5.1 | Repeat medication presence and retrieval tests across all five compartments. | The system consistently detects and records the tested events. |
 | 5 | A5.2 | Compare recorded events with direct observations. | The recorded results correspond to the observed test activities. |
 
-**Note:** The number of interactions and repetitions should be finalized in the testing protocol. The table above describes test cases, not the number of independent test sessions.
+**Note:** Each scheduled dose can produce only one classification. A2.1–A2.4
+must use separate doses, separate test days, or reset schedules; the same dose
+must not be retrieved multiple times to produce multiple classifications.
+After a dose has been retrieved, refill the compartment in a separate
+scenario and verify that the refill does not create a new missed-dose result.
+The number of interactions and repetitions should be finalized in the testing
+protocol. The table above describes test cases, not the number of independent
+test sessions.
 
 ## A.2. Testing Package B – BLE Separation Alert
 

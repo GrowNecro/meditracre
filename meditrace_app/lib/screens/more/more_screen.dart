@@ -6,7 +6,6 @@ import '../../providers/ble_provider.dart';
 import '../../services/family_api.dart';
 import '../../services/app_update_service.dart';
 import 'family_screen.dart';
-import 'medication_guide_screen.dart';
 
 class MoreScreen extends StatefulWidget {
   const MoreScreen({super.key, this.inviteCode, this.onInviteConsumed});
@@ -152,19 +151,7 @@ class _MoreScreenState extends State<MoreScreen> {
   Widget build(BuildContext context) {
     final app = context.watch<AppProvider>();
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Profil'),
-        actions: [
-          IconButton(
-            tooltip: 'Panduan obat',
-            icon: const Icon(Icons.help_outline),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const MedicationGuideScreen()),
-            ),
-          ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('Profil')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [

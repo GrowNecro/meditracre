@@ -429,7 +429,13 @@ class BleProvider extends ChangeNotifier {
           }
         }
         final newlyEmpty = emptyNow.difference(_emptyCompartments);
+        final newlyFilled = _emptyCompartments.difference(emptyNow);
         if (valid) _emptyCompartments = emptyNow;
+        for (final compartment in newlyFilled) {
+          unawaited(
+            _app.handleCompartmentRefilled(compartment, DateTime.now()),
+          );
+        }
         if (newlyEmpty.isNotEmpty) {
           unawaited(_showRefillAlertSafely());
           unawaited(_reportLowSupply(newlyEmpty));
@@ -629,9 +635,7 @@ class BleProvider extends ChangeNotifier {
         unawaited(_showScheduledDoseAlertSafely(event));
       } else if (event.type == 'DOSE_REMOVED') {
         final taken = _app.doseTakenFromRemoval(event);
-        unawaited(_app.addEvent(taken));
-        unawaited(_showDoseTakenAlertSafely(taken));
-        unawaited(_reportDoseConfirmed(taken));
+        unawaited(_recordDoseTaken(taken));
       } else {
         unawaited(_app.addEvent(event));
       }
@@ -640,6 +644,13 @@ class BleProvider extends ChangeNotifier {
         _app.addEvent(DoseEvent(type: payload, timestamp: DateTime.now())),
       );
     }
+  }
+
+  Future<void> _recordDoseTaken(DoseEvent event) async {
+    final recorded = await _app.addEvent(event);
+    if (!recorded) return;
+    unawaited(_showDoseTakenAlertSafely(event));
+    unawaited(_reportDoseConfirmed(event));
   }
 
   Future<void> _reportDoseConfirmed(DoseEvent event) async {

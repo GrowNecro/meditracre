@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../models/dose_event.dart';
 import '../../providers/app_provider.dart';
 import '../../services/family_api.dart';
 
@@ -53,7 +52,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Widget build(BuildContext context) {
     final app = context.watch<AppProvider>();
     final preview = app.history.isEmpty;
-    final events = preview ? _previewEvents() : app.history;
+    final events = app.history;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Riwayat'),
@@ -74,92 +73,68 @@ class _HistoryScreenState extends State<HistoryScreen> {
               alerts: _familyAlerts,
               onAcknowledge: _acknowledge,
             ),
-          ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(16),
-            itemCount: events.length + (preview ? 1 : 0),
-            separatorBuilder: (_, _) => const SizedBox(height: 8),
-            itemBuilder: (context, index) {
-              if (preview && index == 0) {
+          if (preview)
+            Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.history_toggle_off,
+                    size: 64,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Belum ada riwayat',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Aktivitas obat dan perangkat akan muncul di sini.',
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          if (!preview)
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(16),
+              itemCount: events.length,
+              separatorBuilder: (_, _) => const SizedBox(height: 8),
+              itemBuilder: (context, index) {
+                final event = events[index];
+                final time = event.timestamp.toLocal();
+                final color = _eventColor(context, event.type);
                 return Card(
-                  color: Theme.of(context).colorScheme.secondaryContainer,
-                  child: const ListTile(
-                    leading: Icon(Icons.visibility_outlined),
-                    title: Text('Contoh tampilan riwayat'),
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 4,
+                    ),
+                    leading: CircleAvatar(
+                      backgroundColor: color.withValues(alpha: 0.14),
+                      foregroundColor: color,
+                      child: Icon(_eventIcon(event.type)),
+                    ),
+                    title: Text(
+                      _eventTitle(event.type, event.state, event.status),
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
                     subtitle: Text(
-                      'Aktivitas di bawah hanya contoh dan tidak tersimpan.',
+                      '${time.day.toString().padLeft(2, '0')}/${time.month.toString().padLeft(2, '0')}/${time.year} '
+                      '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}'
+                      '${event.sensorId == null ? '' : ' · Ruang ${event.sensorId}'}',
                     ),
                   ),
                 );
-              }
-              final event = events[index - (preview ? 1 : 0)];
-              final time = event.timestamp.toLocal();
-              final color = _eventColor(context, event.type);
-              return Card(
-                color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 4,
-                  ),
-                  leading: CircleAvatar(
-                    backgroundColor: color.withValues(alpha: 0.14),
-                    foregroundColor: color,
-                    child: Icon(_eventIcon(event.type)),
-                  ),
-                  title: Text(
-                    _eventTitle(event.type, event.state, event.status),
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  subtitle: Text(
-                    '${time.day.toString().padLeft(2, '0')}/${time.month.toString().padLeft(2, '0')}/${time.year} '
-                    '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}'
-                    '${event.sensorId == null ? '' : ' · Ruang ${event.sensorId}'}',
-                  ),
-                ),
-              );
-            },
-          ),
+              },
+            ),
         ],
       ),
     );
-  }
-
-  List<DoseEvent> _previewEvents() {
-    final now = DateTime.now();
-    return [
-      DoseEvent(
-        type: 'DOSE_CONFIRMED',
-        status: 'ON_TIME',
-        timestamp: now.subtract(const Duration(minutes: 18)),
-        sensorId: 2,
-      ),
-      DoseEvent(
-        type: 'DOSE_REMOVED',
-        timestamp: now.subtract(const Duration(hours: 2)),
-        sensorId: 2,
-      ),
-      DoseEvent(
-        type: 'DOSE_ALARM',
-        timestamp: now.subtract(const Duration(hours: 2, minutes: 5)),
-      ),
-      DoseEvent(
-        type: 'DOOR_STATE_CHANGED',
-        state: false,
-        timestamp: now.subtract(const Duration(hours: 2, minutes: 6)),
-        sensorId: 2,
-      ),
-      DoseEvent(
-        type: 'BLE_DISCONNECTED',
-        timestamp: now.subtract(const Duration(days: 1)),
-      ),
-      DoseEvent(
-        type: 'BLE_CONNECTED',
-        timestamp: now.subtract(const Duration(days: 1, minutes: 3)),
-        status: 'RECONNECTED',
-      ),
-    ];
   }
 
   Future<void> _confirmClear(BuildContext context, AppProvider app) async {

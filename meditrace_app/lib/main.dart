@@ -9,31 +9,38 @@ import 'providers/app_provider.dart';
 import 'providers/ble_provider.dart';
 import 'screens/home/home_screen.dart';
 import 'services/ble_service.dart';
+import 'services/family_api.dart';
 import 'services/flutter_blue_ble_service.dart';
 import 'services/local_database.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  // Firebase bersifat pelengkap untuk fitur keluarga. Jangan menahan runApp()
-  // karena kegagalan konfigurasi Firebase tidak boleh membuat aplikasi berhenti
-  // di splash screen Flutter.
-  unawaited(_initializeFirebase());
-  runApp(const MeditraceApp());
+  _firebaseInitialization = _initializeFirebase();
+  runApp(const MeditraceApp(showStartupSplash: true));
 }
 
+Future<void> _firebaseInitialization = Future<void>.value();
+
 Future<void> _initializeFirebase() async {
+  if (Firebase.apps.isNotEmpty) return;
   try {
-    if (Firebase.apps.isEmpty) await Firebase.initializeApp();
+    await Firebase.initializeApp();
   } catch (_) {
     // BLE, jadwal lokal, dan riwayat tetap dapat dipakai tanpa Firebase.
   }
 }
 
 class MeditraceApp extends StatefulWidget {
-  const MeditraceApp({super.key, this.bleService, this.database});
+  const MeditraceApp({
+    super.key,
+    this.bleService,
+    this.database,
+    this.showStartupSplash = false,
+  });
 
   final BleService? bleService;
   final LocalDatabase? database;
+  final bool showStartupSplash;
 
   @override
   State<MeditraceApp> createState() => _MeditraceAppState();
@@ -47,6 +54,8 @@ class _MeditraceAppState extends State<MeditraceApp>
   StreamSubscription<Uri>? _linkSubscription;
   String? _inviteCode;
   int _homeTab = 0;
+  bool _isReady = false;
+  bool _entryPromptShown = false;
 
   @override
   void initState() {
@@ -95,8 +104,42 @@ class _MeditraceAppState extends State<MeditraceApp>
   }
 
   Future<void> _start() async {
+    await _firebaseInitialization;
     await _app.initialize();
-    await _ble.reconnectSavedDevice();
+    if (mounted) {
+      setState(() => _isReady = true);
+    }
+    if (widget.showStartupSplash) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        unawaited(_showEntryChoice());
+      });
+    }
+    unawaited(_ble.reconnectSavedDevice());
+  }
+
+  Future<void> _showEntryChoice() async {
+    final api = FamilyApi();
+    if (_entryPromptShown || !mounted || await api.hasSession) return;
+    if (!mounted) return;
+    _entryPromptShown = true;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => _EntryChoiceDialog(
+        onLogin: () async {
+          try {
+            await api.loginWithGoogle();
+            if (dialogContext.mounted) Navigator.pop(dialogContext);
+          } catch (error) {
+            if (dialogContext.mounted) {
+              ScaffoldMessenger.of(dialogContext)
+                  .showSnackBar(SnackBar(content: Text(error.toString())));
+            }
+          }
+        },
+        onGuest: () => Navigator.pop(dialogContext),
+      ),
+    );
   }
 
   @override
@@ -119,16 +162,149 @@ class _MeditraceAppState extends State<MeditraceApp>
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF397A80),
+          seedColor: const Color(0xFF16B8C0),
           brightness: Brightness.light,
         ),
         useMaterial3: true,
+        scaffoldBackgroundColor: const Color(0xFFF2FFFE),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFFE7FFFD),
+          foregroundColor: Color(0xFF075E63),
+          surfaceTintColor: Colors.transparent,
+        ),
+        navigationBarTheme: const NavigationBarThemeData(
+          backgroundColor: Color(0xFFE7FFFD),
+          indicatorColor: Color(0xFF9DEBE8),
+          surfaceTintColor: Colors.transparent,
+        ),
+        cardTheme: const CardThemeData(surfaceTintColor: Color(0xFFB9F4F0)),
+        pageTransitionsTheme: const PageTransitionsTheme(
+          builders: {
+            TargetPlatform.android: _FadeSlidePageTransitionsBuilder(),
+            TargetPlatform.iOS: _FadeSlidePageTransitionsBuilder(),
+            TargetPlatform.windows: _FadeSlidePageTransitionsBuilder(),
+            TargetPlatform.macOS: _FadeSlidePageTransitionsBuilder(),
+            TargetPlatform.linux: _FadeSlidePageTransitionsBuilder(),
+          },
+        ),
       ),
-      home: HomeScreen(
-        selectedIndex: _homeTab,
-        inviteCode: _inviteCode,
-        onInviteConsumed: () => setState(() => _inviteCode = null),
+      darkTheme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF16B8C0),
+          brightness: Brightness.dark,
+        ),
+        useMaterial3: true,
+        scaffoldBackgroundColor: const Color(0xFF071F20),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFF0B2D2E),
+          surfaceTintColor: Colors.transparent,
+        ),
+        navigationBarTheme: const NavigationBarThemeData(
+          backgroundColor: Color(0xFF0B2D2E),
+          surfaceTintColor: Colors.transparent,
+        ),
+        cardTheme: const CardThemeData(surfaceTintColor: Color(0xFF164849)),
+      ),
+      themeMode: ThemeMode.system,
+      home: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 300),
+        switchInCurve: Curves.easeOut,
+        switchOutCurve: Curves.easeIn,
+        child: !widget.showStartupSplash || _isReady
+            ? HomeScreen(
+                key: const ValueKey('home'),
+                selectedIndex: _homeTab,
+                inviteCode: _inviteCode,
+                onInviteConsumed: () => setState(() => _inviteCode = null),
+              )
+            : const _SplashScreen(key: ValueKey('splash')),
       ),
     ),
+  );
+}
+
+class _FadeSlidePageTransitionsBuilder extends PageTransitionsBuilder {
+  const _FadeSlidePageTransitionsBuilder();
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    final slide = Tween<Offset>(
+      begin: const Offset(0.08, 0),
+      end: Offset.zero,
+    ).chain(CurveTween(curve: Curves.easeOutCubic)).animate(animation);
+    final fade = CurvedAnimation(parent: animation, curve: Curves.easeOut);
+    return FadeTransition(
+      opacity: fade,
+      child: SlideTransition(position: slide, child: child),
+    );
+  }
+}
+
+class _SplashScreen extends StatelessWidget {
+  const _SplashScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    body: const SizedBox.expand(
+      child: Image(
+        image: AssetImage('assets/images/splash_screen.jpg'),
+        fit: BoxFit.cover,
+      ),
+    ),
+  );
+}
+
+class _EntryChoiceDialog extends StatefulWidget {
+  const _EntryChoiceDialog({required this.onLogin, required this.onGuest});
+
+  final Future<void> Function() onLogin;
+  final VoidCallback onGuest;
+
+  @override
+  State<_EntryChoiceDialog> createState() => _EntryChoiceDialogState();
+}
+
+class _EntryChoiceDialogState extends State<_EntryChoiceDialog> {
+  bool _loading = false;
+
+  Future<void> _login() async {
+    setState(() => _loading = true);
+    try {
+      await widget.onLogin();
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('Selamat datang di MEDITRACE'),
+    content: const Text(
+      'Masuk untuk menggunakan fitur keluarga dan sinkronisasi akun, '
+      'atau lanjut sebagai tamu untuk memakai fitur lokal.',
+    ),
+    actions: [
+      TextButton(
+        onPressed: _loading ? null : widget.onGuest,
+        child: const Text('Lanjut sebagai tamu'),
+      ),
+      FilledButton.icon(
+        onPressed: _loading ? null : _login,
+        icon: _loading
+            ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Icon(Icons.login),
+        label: const Text('Login'),
+      ),
+    ],
   );
 }
