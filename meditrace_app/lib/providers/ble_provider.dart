@@ -34,6 +34,8 @@ class BleProvider extends ChangeNotifier {
             connectionState == MeditraceConnectionState.connected;
         connectionState = value;
         if (value == MeditraceConnectionState.connected) {
+          _reconnectTimer?.cancel();
+          _pendingAutoReconnectId = null;
           if (!wasConnected) {
             unawaited(
               _recordConnectionEvent(
@@ -78,7 +80,7 @@ class BleProvider extends ChangeNotifier {
           }
 
           if (!_manualDisconnect && _app.autoReconnectEnabled) {
-            _scheduleReconnect(const Duration(seconds: 2));
+            _scheduleReconnect(const Duration(milliseconds: 500));
           }
         }
         notifyListeners();
@@ -203,13 +205,28 @@ class BleProvider extends ChangeNotifier {
     final remoteId = _app.pairedDeviceId;
     if (!_app.autoReconnectEnabled ||
         remoteId == null ||
-        isBusy ||
         connectionState == MeditraceConnectionState.connected ||
         connectionState == MeditraceConnectionState.connecting) {
       return;
     }
+    // A status refresh or scan setup may still be finishing after disconnect.
+    // Retry instead of silently losing the reconnect request while busy.
+    if (isBusy) {
+      _scheduleReconnect(const Duration(milliseconds: 500));
+      return;
+    }
     _pendingAutoReconnectId = remoteId;
+    if (isScanning) {
+      _connectIfSavedDeviceFound(devices);
+      return;
+    }
     await _run(_service.startScan);
+    if (errorMessage != null) {
+      _scheduleReconnect();
+      return;
+    }
+    // The saved device may have arrived before startScan completed.
+    _connectIfSavedDeviceFound(devices);
   }
 
   Future<void> sendCommand(String command) =>
@@ -361,7 +378,16 @@ class BleProvider extends ChangeNotifier {
     final targetId = _pendingAutoReconnectId;
     if (targetId == null || !_app.autoReconnectEnabled) return;
     if (!foundDevices.any((device) => device.remoteId == targetId)) return;
+    if (connectionState == MeditraceConnectionState.connected ||
+        connectionState == MeditraceConnectionState.connecting) {
+      return;
+    }
+    if (isBusy) {
+      _scheduleReconnect(const Duration(milliseconds: 500));
+      return;
+    }
 
+    _reconnectTimer?.cancel();
     _pendingAutoReconnectId = null;
     unawaited(_connectAutomatically(targetId));
   }
@@ -378,7 +404,7 @@ class BleProvider extends ChangeNotifier {
     }
   }
 
-  void _scheduleReconnect([Duration delay = const Duration(seconds: 5)]) {
+  void _scheduleReconnect([Duration delay = const Duration(seconds: 2)]) {
     if (!_app.autoReconnectEnabled ||
         connectionState == MeditraceConnectionState.connected ||
         connectionState == MeditraceConnectionState.connecting) {

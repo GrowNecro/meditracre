@@ -9,11 +9,108 @@ import 'package:meditrace_app/models/dose_event.dart';
 import 'package:meditrace_app/models/meditrace_device.dart';
 import 'package:meditrace_app/models/medication_schedule.dart';
 import 'package:meditrace_app/providers/app_provider.dart';
+import 'package:meditrace_app/providers/ble_provider.dart';
 import 'package:meditrace_app/services/ble_service.dart';
 import 'package:meditrace_app/services/battery_estimate.dart';
 import 'package:meditrace_app/services/local_database.dart';
 
 void main() {
+  testWidgets('reconnect mulai 500 ms setelah koneksi terputus', (
+    tester,
+  ) async {
+    final service = _FakeBleService();
+    final app = AppProvider(database: _MemoryLocalDatabase())
+      ..pairedDeviceId = 'saved-device'
+      ..autoReconnectEnabled = true;
+    final ble = BleProvider(service, app)
+      ..connectionState = MeditraceConnectionState.connected;
+
+    service.emitDisconnected();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 499));
+    expect(service.scanCount, 0);
+    await tester.pump(const Duration(milliseconds: 1));
+    expect(service.scanCount, 1);
+    ble.dispose();
+    app.dispose();
+  });
+
+  testWidgets('reconnect yang tertunda saat sibuk tetap dicoba', (
+    tester,
+  ) async {
+    final service = _FakeBleService();
+    final app = AppProvider(database: _MemoryLocalDatabase())
+      ..pairedDeviceId = 'saved-device'
+      ..autoReconnectEnabled = true;
+    final ble = BleProvider(service, app)..isBusy = true;
+
+    await ble.reconnectSavedDevice();
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(service.scanCount, 0);
+    ble.isBusy = false;
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(service.scanCount, 1);
+    ble.dispose();
+    app.dispose();
+  });
+
+  testWidgets('reconnect mencoba lagi setelah scan gagal', (tester) async {
+    final service = _FakeBleService()..scanFails = true;
+    final app = AppProvider(database: _MemoryLocalDatabase())
+      ..pairedDeviceId = 'saved-device'
+      ..autoReconnectEnabled = true;
+    final ble = BleProvider(service, app);
+
+    await ble.reconnectSavedDevice();
+    expect(service.scanCount, 1);
+    service.scanFails = false;
+    await tester.pump(const Duration(seconds: 2));
+    expect(service.scanCount, 2);
+    ble.dispose();
+    app.dispose();
+  });
+
+  testWidgets('reconnect memakai hasil scan aktif tanpa scan ulang', (
+    tester,
+  ) async {
+    final service = _FakeBleService();
+    final app = AppProvider(database: _MemoryLocalDatabase())
+      ..pairedDeviceId = 'saved-device'
+      ..autoReconnectEnabled = true;
+    final ble = BleProvider(service, app)
+      ..isScanning = true
+      ..devices = [
+        MeditraceDevice(
+          remoteId: 'saved-device',
+          name: 'MEDITRACE-1234',
+          rssi: -50,
+        ),
+      ];
+
+    await ble.reconnectSavedDevice();
+    await tester.pump();
+    expect(service.scanCount, 0);
+    expect(service.connectCount, 1);
+    ble.dispose();
+    app.dispose();
+  });
+
+  testWidgets('putus manual tetap menonaktifkan reconnect', (tester) async {
+    final service = _FakeBleService();
+    final app = AppProvider(database: _MemoryLocalDatabase())
+      ..pairedDeviceId = 'saved-device'
+      ..autoReconnectEnabled = true;
+    final ble = BleProvider(service, app);
+
+    await ble.disconnect();
+    await ble.reconnectSavedDevice();
+    await tester.pump(const Duration(seconds: 3));
+    expect(app.autoReconnectEnabled, isFalse);
+    expect(service.scanCount, 0);
+    ble.dispose();
+    app.dispose();
+  });
+
   testWidgets('menampilkan kondisi awal disconnected', (tester) async {
     await tester.pumpWidget(MeditraceApp(bleService: _FakeBleService()));
 
@@ -522,8 +619,13 @@ class _FakeBleService implements BleService {
   final _status = StreamController<String>.broadcast();
   DeviceInfo? info;
   int signal = -60;
+  int scanCount = 0;
+  int connectCount = 0;
+  bool scanFails = false;
 
   void emitConnected() => _connection.add(MeditraceConnectionState.connected);
+  void emitDisconnected() =>
+      _connection.add(MeditraceConnectionState.disconnected);
   void emitStatus(String value) => _status.add(value);
 
   @override
@@ -543,7 +645,10 @@ class _FakeBleService implements BleService {
   @override
   Stream<String> get statusMessages => _status.stream;
   @override
-  Future<void> connect(String remoteId) async {}
+  Future<void> connect(String remoteId) async {
+    connectCount++;
+  }
+
   @override
   Future<void> disconnect() async {}
   @override
@@ -557,7 +662,11 @@ class _FakeBleService implements BleService {
   @override
   Future<int?> readSignalStrength() async => signal;
   @override
-  Future<void> startScan() async {}
+  Future<void> startScan() async {
+    scanCount++;
+    if (scanFails) throw const BleException('Scan gagal');
+  }
+
   @override
   Future<void> stopScan() async {}
   @override

@@ -4,7 +4,7 @@
 
 namespace MeditraceConfig {
 
-inline constexpr char FIRMWARE_VERSION[] = "0.9.5";
+inline constexpr char FIRMWARE_VERSION[] = "0.9.6";
 inline constexpr bool DEBUG_LOGS = false;
 
 inline constexpr char SERVICE_UUID[] = "7d2ea28a-f7bd-485a-bd9d-92ad6ecfe001";

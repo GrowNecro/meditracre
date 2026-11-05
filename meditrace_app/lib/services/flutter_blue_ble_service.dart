@@ -19,6 +19,7 @@ class FlutterBlueBleService implements BleService {
   final _eventController = StreamController<String>.broadcast();
 
   final Map<String, BluetoothDevice> _devices = {};
+  final Map<String, MeditraceDevice> _scanDevices = {};
   StreamSubscription<List<ScanResult>>? _scanSubscription;
   StreamSubscription<bool>? _scanningSubscription;
   StreamSubscription<BluetoothConnectionState>? _connectionSubscription;
@@ -85,9 +86,18 @@ class FlutterBlueBleService implements BleService {
       throw const BleException('Perangkat ini tidak mendukung Bluetooth LE.');
     }
     await _ensureBluetoothIsOn();
+    // Reuse an active scan instead of restarting the radio and losing results.
+    if (FlutterBluePlus.isScanningNow) return;
     _devices.clear();
+    _scanDevices.clear();
     _scanController.add(const []);
-    await FlutterBluePlus.startScan(timeout: BleConstants.scanDuration);
+    await FlutterBluePlus.startScan(
+      timeout: BleConstants.scanDuration,
+      androidScanMode: AndroidScanMode.lowLatency,
+      // Process each advertisement once instead of repeatedly filtering the
+      // full list of nearby Bluetooth devices on every result.
+      oneByOne: true,
+    );
   }
 
   Future<void> _ensureBluetoothIsOn() async {
@@ -120,7 +130,7 @@ class FlutterBlueBleService implements BleService {
   }
 
   void _handleScanResults(List<ScanResult> results) {
-    final meditraceDevices = <MeditraceDevice>[];
+    var changed = false;
     for (final result in results) {
       final name = result.advertisementData.advName.isNotEmpty
           ? result.advertisementData.advName
@@ -136,14 +146,15 @@ class FlutterBlueBleService implements BleService {
       }
       final id = result.device.remoteId.str;
       _devices[id] = result.device;
-      meditraceDevices.add(
-        MeditraceDevice(
-          remoteId: id,
-          name: name.isEmpty ? 'MEDITRACE ($id)' : name,
-          rssi: result.rssi,
-        ),
+      _scanDevices[id] = MeditraceDevice(
+        remoteId: id,
+        name: name.isEmpty ? 'MEDITRACE ($id)' : name,
+        rssi: result.rssi,
       );
+      changed = true;
     }
+    if (!changed) return;
+    final meditraceDevices = _scanDevices.values.toList();
     meditraceDevices.sort((a, b) => b.rssi.compareTo(a.rssi));
     _scanController.add(meditraceDevices);
   }

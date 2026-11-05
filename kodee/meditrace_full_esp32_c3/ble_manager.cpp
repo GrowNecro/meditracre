@@ -149,9 +149,9 @@ void BleManager::begin(
   NimBLEAdvertising* advertising = NimBLEDevice::getAdvertising();
   advertising->addServiceUUID(MeditraceConfig::SERVICE_UUID);
   advertising->setName(meditraceDeviceName.c_str());
-  // Keep discovery reliable while reducing the number of advertising events.
-  advertising->setMinInterval(640);   // 400 ms, BLE units of 0.625 ms.
-  advertising->setMaxInterval(1600);  // 1000 ms.
+  // Advertise frequently so nearby phones can discover the device quickly.
+  advertising->setMinInterval(160);  // 100 ms, BLE units of 0.625 ms.
+  advertising->setMaxInterval(240);  // 150 ms.
   advertising->enableScanResponse(true);
   startAdvertising();
 }
