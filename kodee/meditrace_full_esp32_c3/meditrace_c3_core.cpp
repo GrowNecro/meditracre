@@ -17,7 +17,9 @@ SensorManager sensorManager;
 StorageManager storageManager;
 
 uint8_t batteryLevel = 0;
-float batteryVoltage = 0.0f;
+uint32_t batteryUsedMs = 0;
+uint32_t batteryLastTickMs = 0;
+uint32_t batterySavedUsedMs = 0;
 uint32_t lastBatteryReadMs = 0;
 uint32_t syncedEpoch = 0;
 uint32_t syncedAtMs = 0;
@@ -42,36 +44,24 @@ uint32_t crc32Update(uint32_t crc, const uint8_t* data, size_t length) {
   return crc;
 }
 
-uint8_t batteryPercentForVoltage(float voltage) {
-  if (voltage >= 4.20f) return 100;
-  if (voltage >= 4.10f) return 90;
-  if (voltage >= 4.00f) return 75;
-  if (voltage >= 3.90f) return 60;
-  if (voltage >= 3.80f) return 40;
-  if (voltage >= 3.70f) return 25;
-  if (voltage >= 3.60f) return 10;
-  if (voltage >= 3.30f) return 3;
-  return 0;
-}
-
 void updateBatteryReading() {
 #if defined(CONFIG_IDF_TARGET_ESP32C3)
   const uint32_t now = millis();
-  if (lastBatteryReadMs != 0 &&
-      now - lastBatteryReadMs < MeditraceConfig::BATTERY_READ_INTERVAL_MS) {
-    return;
+  const uint32_t elapsed = now - batteryLastTickMs;
+  batteryLastTickMs = now;
+  const uint32_t runtime = MeditraceConfig::BATTERY_ESTIMATED_RUNTIME_MS;
+  batteryUsedMs = static_cast<uint32_t>(min(
+      static_cast<uint64_t>(runtime),
+      static_cast<uint64_t>(batteryUsedMs) + elapsed));
+  batteryLevel = static_cast<uint8_t>(
+      (static_cast<uint64_t>(runtime - batteryUsedMs) * 100 + runtime - 1) / runtime);
+  // Checkpoint every five minutes to limit flash writes. A sudden power loss
+  // may lose up to five minutes; normal restart/update saves the latest value.
+  if (batteryUsedMs - batterySavedUsedMs >= 300'000) {
+    if (storageManager.saveBatteryUsedMs(batteryUsedMs)) {
+      batterySavedUsedMs = batteryUsedMs;
+    }
   }
-  lastBatteryReadMs = now;
-
-  uint32_t adcMillivolts = 0;
-  constexpr uint8_t sampleCount = 8;
-  for (uint8_t sample = 0; sample < sampleCount; ++sample) {
-    adcMillivolts += analogReadMilliVolts(MeditraceConfig::BATTERY_ADC_PIN);
-    delay(1);
-  }
-  const float adcVoltage = (adcMillivolts / static_cast<float>(sampleCount)) / 1000.0f;
-  batteryVoltage = adcVoltage * MeditraceConfig::BATTERY_DIVIDER_RATIO;
-  batteryLevel = batteryPercentForVoltage(batteryVoltage);
 #endif
 }
 
@@ -193,12 +183,12 @@ String deviceInfoJson() {
          "\",\"board\":\"" + MeditraceConfig::BOARD_TYPE +
          "\",\"firmware\":\"" + MeditraceConfig::FIRMWARE_VERSION +
          "\",\"battery\":" + batteryLevel +
-         ",\"battery_voltage\":" + String(batteryVoltage, 2) + "}";
+         ",\"battery_estimated\":true,\"battery_voltage\":null}";
 }
 
 String statusJson() {
   return String("{\"battery\":") + batteryLevel +
-         ",\"battery_voltage\":" + String(batteryVoltage, 2) +
+         ",\"battery_estimated\":true,\"battery_voltage\":null" +
          ",\"rtc\":false,\"clock\":\"APP\",\"time_synced\":" +
          (syncedEpoch == 0 ? "false" : "true") +
          ",\"epoch\":" + currentUnixTime() +
@@ -259,7 +249,18 @@ void handleCommand(const String& payload) {
   if (command == "PING") {
     bleManager.notifyStatus(responseJson(true, command));
   } else if (command == "GET_STATUS") {
+    updateBatteryReading();
     bleManager.notifyStatus(statusJson());
+  } else if (command == "BATTERY_FULL") {
+    if (storageManager.saveBatteryUsedMs(0)) {
+      batteryUsedMs = 0;
+      batterySavedUsedMs = 0;
+      batteryLastTickMs = millis();
+      batteryLevel = 100;
+      bleManager.notifyStatus(statusJson());
+    } else {
+      bleManager.notifyStatus(responseJson(false, command));
+    }
   } else if (command == "LED_ON") {
     alarmManager.setLed(true);
     bleManager.notifyStatus(responseJson(true, command));
@@ -313,6 +314,8 @@ void handleCommand(const String& payload) {
       bleManager.notifyStatus("{\"ota\":\"checksum_failed\"}");
     } else {
       bleManager.notifyStatus("{\"ota\":\"complete\"}");
+      updateBatteryReading();
+      storageManager.saveBatteryUsedMs(batteryUsedMs);
       delay(500);
       ESP.restart();
     }
@@ -330,6 +333,8 @@ void handleCommand(const String& payload) {
     storageManager.clearEvents();
     bleManager.notifyStatus(responseJson(true, command));
   } else if (command == "RESET") {
+    updateBatteryReading();
+    storageManager.saveBatteryUsedMs(batteryUsedMs);
     bleManager.notifyStatus(responseJson(true, command));
     delay(200);
     ESP.restart();
@@ -368,12 +373,12 @@ void processSensors() {
 void setup() {
   Serial.begin(115200);
   delay(300);
-#if defined(CONFIG_IDF_TARGET_ESP32C3)
-  analogSetPinAttenuation(MeditraceConfig::BATTERY_ADC_PIN, ADC_11db);
-  updateBatteryReading();
-#endif
   alarmManager.begin();
   storageManager.begin();
+  batteryUsedMs = storageManager.loadBatteryUsedMs();
+  batterySavedUsedMs = batteryUsedMs;
+  batteryLastTickMs = millis();
+  updateBatteryReading();
 #if defined(CONFIG_IDF_TARGET_ESP32C3)
   Wire.begin(MeditraceConfig::I2C_SDA_PIN, MeditraceConfig::I2C_SCL_PIN);
   Wire.setClock(100000);
@@ -395,6 +400,10 @@ void setup() {
 void loop() {
   processSerialConsole();
   updateBatteryReading();
+  if (millis() - lastBatteryReadMs >= MeditraceConfig::BATTERY_READ_INTERVAL_MS) {
+    lastBatteryReadMs = millis();
+    bleManager.notifyStatus(statusJson());
+  }
   bleManager.update();
   alarmManager.update();
   processSensors();

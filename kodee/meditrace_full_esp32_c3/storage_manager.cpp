@@ -54,6 +54,14 @@ String StorageManager::loadConfig() {
   return preferences_.getString("device_config", "{}");
 }
 
+uint32_t StorageManager::loadBatteryUsedMs() {
+  return preferences_.getUInt("battery_used_ms", 0);
+}
+
+bool StorageManager::saveBatteryUsedMs(uint32_t usedMs) {
+  return preferences_.putUInt("battery_used_ms", usedMs) == sizeof(usedMs);
+}
+
 String StorageManager::keyFor(size_t slot) const {
   return String("event_") + slot;
 }

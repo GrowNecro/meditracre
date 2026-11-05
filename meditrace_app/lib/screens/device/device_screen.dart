@@ -66,7 +66,7 @@ class DeviceScreen extends StatelessWidget {
             subtitle: const Text('Baterai, sinyal, dan informasi teknis'),
             children: [
               _Info(
-                label: 'Baterai',
+                label: ble.batteryEstimated ? 'Estimasi baterai' : 'Baterai',
                 value: '${ble.battery ?? ble.deviceInfo?.battery ?? 0}%',
               ),
               _Info(
@@ -75,6 +75,24 @@ class DeviceScreen extends StatelessWidget {
                   ble.battery ?? ble.deviceInfo?.battery,
                 ),
               ),
+              if (ble.batteryEstimated) ...[
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Text(
+                    'Perkiraan dari baterai 1500 mAh dan arus rata-rata 150 mA '
+                    '(sekitar 10 jam). Mulai dari asumsi penuh saat pertama '
+                    'digunakan. Setelah dicas penuh, tandai penuh di bawah. '
+                    'Pengisian daya tidak terdeteksi otomatis.',
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: connected && !ble.isBusy
+                      ? () => _markBatteryFull(context, ble)
+                      : null,
+                  icon: const Icon(Icons.battery_charging_full),
+                  label: const Text('Tandai baterai penuh'),
+                ),
+              ],
               _Info(
                 label: 'Kuat sinyal',
                 value: connected ? '${ble.rssi ?? '-'} dBm' : '-',
@@ -178,6 +196,34 @@ class DeviceScreen extends StatelessWidget {
       ),
       body: content,
     );
+  }
+
+  Future<void> _markBatteryFull(BuildContext context, BleProvider ble) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Baterai sudah dicas penuh?'),
+        content: const Text(
+          'Estimasi akan dimulai lagi dari 100%. Gunakan hanya setelah '
+          'baterai benar-benar dicas penuh.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Tandai penuh'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    await ble.markBatteryFull();
+    if (context.mounted && ble.errorMessage != null) {
+      _showMessage(context, ble.errorMessage!);
+    }
   }
 
   Future<void> _selectAndUpdateFirmware(

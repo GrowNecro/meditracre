@@ -281,7 +281,11 @@ class _Dashboard extends StatelessWidget {
                     children: [
                       Icon(batteryIcon, color: batteryColor),
                       const SizedBox(width: 10),
-                      const Expanded(child: Text('Baterai')),
+                      Expanded(
+                        child: Text(
+                          ble.batteryEstimated ? 'Estimasi baterai' : 'Baterai',
+                        ),
+                      ),
                       Text(
                         ble.battery == null ? '--%' : '${ble.battery}%',
                         style: Theme.of(context).textTheme.titleMedium,
@@ -300,7 +304,14 @@ class _Dashboard extends StatelessWidget {
                       backgroundColor: scheme.surface,
                     ),
                   ),
-                  if (ble.batteryVoltage != null) ...[
+                  if (ble.batteryEstimated) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      'Perkiraan waktu pemakaian, bukan pengukuran tegangan.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                  if (!ble.batteryEstimated && ble.batteryVoltage != null) ...[
                     const SizedBox(height: 6),
                     Text(
                       '${ble.batteryVoltage!.toStringAsFixed(2)} V',
@@ -452,7 +463,7 @@ class _Dashboard extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Baterai'),
+              Text(ble.batteryEstimated ? 'Estimasi baterai' : 'Baterai'),
               Text('${ble.battery ?? ble.deviceInfo?.battery ?? '--'}%'),
             ],
           ),

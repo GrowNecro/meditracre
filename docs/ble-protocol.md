@@ -23,6 +23,17 @@ Contoh konfigurasi jadwal melalui CONFIG characteristic:
 
 `GET_STATUS` menghasilkan status baterai, RTC, alarm, dan jumlah event pending.
 
+Mulai firmware C3 0.9.7, baterai memakai estimasi waktu aktif berdasarkan
+1500 mAh / 150 mA (10 jam). `battery_estimated: true` dan
+`battery_voltage: null` menandakan persentase bukan hasil pengukuran ADC.
+Pemasangan pertama mengasumsikan 100%; pengisian tidak dideteksi otomatis.
+Kirim `BATTERY_FULL` setelah pengguna mengonfirmasi baterai sudah dicas penuh
+untuk memulai kembali estimasi dari 100%. Status baterai dikirim setiap 30 detik.
+Pemakaian disimpan di NVS setiap 5 menit dan sebelum restart normal/OTA;
+mati mendadak bisa kehilangan catatan maksimal sekitar 5 menit. Waktu mati
+dan pengosongan alami baterai tidak dihitung. Kapasitas dan arus ini adalah
+asumsi, sehingga persentase dan durasi dapat berbeda dari kondisi sebenarnya.
+
 ```json
 {"battery":82,"rtc":true,"alarm":false,"pending":0}
 ```

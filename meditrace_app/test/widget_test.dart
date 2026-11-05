@@ -15,6 +15,62 @@ import 'package:meditrace_app/services/battery_estimate.dart';
 import 'package:meditrace_app/services/local_database.dart';
 
 void main() {
+  testWidgets('mode estimasi menghapus tegangan ADC lama', (tester) async {
+    final service = _FakeBleService();
+    final app = AppProvider(database: _MemoryLocalDatabase());
+    final ble = BleProvider(service, app);
+    service.emitStatus('{"battery":100,"battery_voltage":5.7}');
+    await tester.pump();
+    expect(ble.batteryVoltage, 5.7);
+    service.emitStatus(
+      '{"battery":50,"battery_estimated":true,"battery_voltage":null}',
+    );
+    await tester.pump();
+    expect(ble.battery, 50);
+    expect(ble.batteryEstimated, isTrue);
+    expect(ble.batteryVoltage, isNull);
+    ble.dispose();
+    app.dispose();
+  });
+
+  testWidgets('estimasi baterai ditandai dan reset perlu konfirmasi', (
+    tester,
+  ) async {
+    final service = _FakeBleService()
+      ..info = const DeviceInfo(
+        deviceId: 'MEDITRACE-C3-1234',
+        deviceName: 'MEDITRACE-C3-1234',
+        firmware: '0.9.7',
+        battery: 50,
+        batteryEstimated: true,
+        board: 'ESP32-C3',
+      );
+    await tester.pumpWidget(MeditraceApp(bleService: service));
+    service.emitConnected();
+    service.emitStatus(
+      '{"battery":50,"battery_estimated":true,"battery_voltage":null}',
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Estimasi baterai'), findsOneWidget);
+    expect(find.text('5.70 V'), findsNothing);
+    await tester.tap(find.text('Perangkat'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('Detail perangkat'), 200);
+    await tester.tap(find.text('Detail perangkat'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('Tandai baterai penuh'), 200);
+    await tester.tap(find.text('Tandai baterai penuh'));
+    await tester.pumpAndSettle();
+    expect(find.text('Baterai sudah dicas penuh?'), findsOneWidget);
+    expect(service.commands, isNot(contains('BATTERY_FULL')));
+    await tester.tap(find.text('Tandai penuh'));
+    await tester.pumpAndSettle();
+    expect(
+      service.commands.where((value) => value == 'BATTERY_FULL'),
+      hasLength(1),
+    );
+  });
+
   testWidgets('reconnect mulai 500 ms setelah koneksi terputus', (
     tester,
   ) async {
@@ -622,6 +678,7 @@ class _FakeBleService implements BleService {
   int scanCount = 0;
   int connectCount = 0;
   bool scanFails = false;
+  final List<String> commands = [];
 
   void emitConnected() => _connection.add(MeditraceConnectionState.connected);
   void emitDisconnected() =>
@@ -670,7 +727,10 @@ class _FakeBleService implements BleService {
   @override
   Future<void> stopScan() async {}
   @override
-  Future<void> writeCommand(String command) async {}
+  Future<void> writeCommand(String command) async {
+    commands.add(command);
+  }
+
   @override
   Future<String> readConfig() async => '{}';
   @override

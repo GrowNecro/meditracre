@@ -12,6 +12,8 @@ class StorageManager {
   void clearEvents();
   bool saveConfig(const String& payload);
   String loadConfig();
+  uint32_t loadBatteryUsedMs();
+  bool saveBatteryUsedMs(uint32_t usedMs);
 
  private:
   String keyFor(size_t slot) const;

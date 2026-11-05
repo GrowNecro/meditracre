@@ -4,7 +4,7 @@
 
 namespace MeditraceConfig {
 
-inline constexpr char FIRMWARE_VERSION[] = "0.9.6";
+inline constexpr char FIRMWARE_VERSION[] = "0.9.7";
 inline constexpr bool DEBUG_LOGS = false;
 
 inline constexpr char SERVICE_UUID[] = "7d2ea28a-f7bd-485a-bd9d-92ad6ecfe001";
@@ -43,8 +43,11 @@ inline constexpr uint8_t I2C_SDA_PIN = 5;
 inline constexpr uint8_t I2C_SCL_PIN = 6;
 inline constexpr uint8_t PCF8575_INT_PIN = 4;
 inline constexpr uint8_t IR_POWER_ENABLE_PIN = 7; // EN load switch pemancar IR, aktif HIGH.
-inline constexpr uint8_t BATTERY_ADC_PIN = 0;
-inline constexpr float BATTERY_DIVIDER_RATIO = 2.0f; // 100k / 100k.
+// Time-based estimate only; no voltage is inferred from the nominal 3.7 V label.
+inline constexpr uint32_t BATTERY_CAPACITY_MAH = 1500;
+inline constexpr uint32_t BATTERY_ESTIMATED_CURRENT_MA = 150;
+inline constexpr uint32_t BATTERY_ESTIMATED_RUNTIME_MS =
+    BATTERY_CAPACITY_MAH * 3'600'000ULL / BATTERY_ESTIMATED_CURRENT_MA;
 inline constexpr uint32_t BATTERY_READ_INTERVAL_MS = 30'000;
 inline constexpr uint32_t IR_WARMUP_MS = 100;
 // Pemancar IR hanya aktif setelah pintu berubah atau saat diminta aplikasi.

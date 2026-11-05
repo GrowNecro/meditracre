@@ -7,6 +7,7 @@ class DeviceInfo {
     required this.firmware,
     required this.battery,
     this.board,
+    this.batteryEstimated = false,
   });
 
   final String deviceId;
@@ -14,6 +15,7 @@ class DeviceInfo {
   final String firmware;
   final int battery;
   final String? board;
+  final bool batteryEstimated;
 
   int get compartmentCount => board == 'ESP32-C3' ? c3CompartmentCount : 2;
 
@@ -26,5 +28,6 @@ class DeviceInfo {
     firmware: json['firmware'] as String? ?? '-',
     battery: (json['battery'] as num?)?.toInt() ?? 0,
     board: json['board'] as String?,
+    batteryEstimated: json['battery_estimated'] == true,
   );
 }

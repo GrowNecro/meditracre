@@ -56,6 +56,9 @@ class BleProvider extends ChangeNotifier {
         } else if (wasConnected &&
             value == MeditraceConnectionState.disconnected) {
           _stopSignalMonitoring();
+          _batteryEstimated = null;
+          battery = null;
+          batteryVoltage = null;
           _deviceClockSynced = false;
           sensors = const [];
           doors = const [];
@@ -147,6 +150,9 @@ class BleProvider extends ChangeNotifier {
   String? errorMessage;
   int? battery;
   double? batteryVoltage;
+  bool? _batteryEstimated;
+  bool get batteryEstimated =>
+      _batteryEstimated ?? deviceInfo?.batteryEstimated ?? false;
   bool alarmActive = false;
   int pendingEvents = 0;
   List<int> sensors = const [];
@@ -231,6 +237,11 @@ class BleProvider extends ChangeNotifier {
 
   Future<void> sendCommand(String command) =>
       _run(() => _service.writeCommand(command));
+
+  Future<void> markBatteryFull() => _run(() async {
+    await _service.writeCommand('BATTERY_FULL');
+    await _service.refreshStatus();
+  });
 
   Future<void> updateFirmware(Uint8List firmware) async {
     if (firmware.isEmpty) throw const BleException('File firmware kosong.');
@@ -425,8 +436,13 @@ class BleProvider extends ChangeNotifier {
         _dummySignalOverride = (json['simulated_rssi'] as num?)?.toInt();
       }
       battery = (json['battery'] as num?)?.toInt() ?? battery;
-      batteryVoltage =
-          (json['battery_voltage'] as num?)?.toDouble() ?? batteryVoltage;
+      _batteryEstimated =
+          json['battery_estimated'] as bool? ?? _batteryEstimated;
+      if (batteryEstimated || json.containsKey('battery_voltage')) {
+        batteryVoltage = batteryEstimated
+            ? null
+            : (json['battery_voltage'] as num?)?.toDouble();
+      }
       alarmActive = json['alarm'] as bool? ?? alarmActive;
       pendingEvents = (json['pending'] as num?)?.toInt() ?? pendingEvents;
       if (json.containsKey('sensors') || json.containsKey('doors')) {
