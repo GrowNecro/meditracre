@@ -7,7 +7,7 @@ melalui ESP32-C3/Bluetooth Low Energy, serta fitur keluarga.
 
 | Bagian | Spesifikasi |
 | --- | --- |
-| Aplikasi | Flutter Android, package `com.example.meditrace`, versi `1.0.2+8` |
+| Aplikasi | Flutter Android, package `com.example.meditrace`, versi `1.0.3+9` |
 | Firmware | ESP32-C3, versi `0.9.7` |
 | Kompartemen | 5 ruang dengan sensor IR break-beam dan limit switch pintu NC |
 | Ekspander input | PCF8575 pada I²C GPIO5/GPIO6; alamat `0x20–0x27`, prioritas `0x21` |
