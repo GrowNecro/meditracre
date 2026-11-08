@@ -1,3 +1,5 @@
+import '../../l10n/localization.dart';
+
 import 'package:flutter/material.dart';
 
 class MedicationGuideScreen extends StatelessWidget {
@@ -7,13 +9,13 @@ class MedicationGuideScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: const Text('Panduan penggunaan obat')),
+      appBar: AppBar(title: Text(context.l10n.medicationUsageGuide)),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           Card(
             color: scheme.primaryContainer,
-            child: const Padding(
+            child: Padding(
               padding: EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -23,71 +25,54 @@ class MedicationGuideScreen extends StatelessWidget {
                       Icon(Icons.info_outline),
                       SizedBox(width: 8),
                       Text(
-                        'Catatan penting',
+                        context.l10n.importantNote,
                         style: TextStyle(fontWeight: FontWeight.bold),
                       ),
                     ],
                   ),
                   SizedBox(height: 8),
-                  Text(
-                    'Informasi ini bersifat umum dan tidak menggantikan '
-                    'instruksi dokter, apoteker, maupun etiket obat Anda.',
-                  ),
+                  Text(context.l10n.thisIsGeneralInformationAndDoesNotReplace),
                 ],
               ),
             ),
           ),
           const SizedBox(height: 12),
-          const _GuideCard(
+          _GuideCard(
             icon: Icons.schedule_outlined,
-            title: 'Mengapa jadwal penting?',
-            body:
-                'Minum obat secara teratur sesuai rencana terapi membantu '
-                'obat bekerja sebagaimana yang diharapkan. Gunakan pengingat '
-                'MEDITRACE sebagai pendamping, lalu ikuti aturan pada resep.',
+            title: context.l10n.whyDoesSchedulingMatter,
+            body: context
+                .l10n
+                .takingMedicationRegularlyAccordingToYourTreatmentPlan,
           ),
-          const _GuideCard(
+          _GuideCard(
             icon: Icons.warning_amber_outlined,
-            title: 'Jangan mengubah dosis sendiri',
-            body:
-                'Melewatkan, menunda, atau meminum dosis terlalu berdekatan '
-                'dapat mengurangi manfaat obat atau meningkatkan risiko efek '
-                'samping. Jangan menghentikan, menambah, atau menggandakan '
-                'dosis tanpa arahan dokter atau apoteker.',
+            title: context.l10n.doNotChangeTheDoseYourself,
+            body: context.l10n.skippingDelayingOrTakingDosesTooCloseTogether,
           ),
-          const _GuideCard(
+          _GuideCard(
             icon: Icons.help_outline,
-            title: 'Kalau lupa minum obat',
+            title: context.l10n.ifYouForgetADose,
             body:
-                'Aturannya tidak sama untuk semua obat. Periksa etiket atau '
-                'leaflet obat dan hubungi dokter atau apoteker bila ragu. '
-                'Jangan langsung menggandakan dosis untuk mengganti yang lupa.',
+                context.l10n.instructionsVaryBetweenMedicationsCheckTheLabelOr,
           ),
-          const _GuideCard(
+          _GuideCard(
             icon: Icons.checklist_outlined,
-            title: 'Panduan praktis',
-            body:
-                '• Isi kompartemen sesuai resep dan label asli obat.\n'
-                '• Tekan “Sudah minum” setelah obat benar-benar diminum atau '
-                'digunakan sesuai instruksi.\n'
-                '• Catat atau tanyakan bila ada efek yang mengganggu.\n'
-                '• Jangan menghancurkan atau membuka kapsul tanpa petunjuk '
-                'tenaga kesehatan.',
+            title: context.l10n.practicalGuide,
+            body: context
+                .l10n
+                .fillCompartmentsAccordingToThePrescriptionAndOriginal,
           ),
-          const _GuideCard(
+          _GuideCard(
             icon: Icons.emergency_outlined,
-            title: 'Kapan perlu bantuan segera?',
-            body:
-                'Segera hubungi layanan gawat darurat setempat bila setelah '
-                'obat muncul sulit bernapas atau bengkak pada wajah, bibir, '
-                'mulut, atau tenggorokan. Untuk keluhan lain yang mengkhawatirkan, '
-                'hubungi dokter atau apoteker.',
+            title: context.l10n.whenDoYouNeedUrgentHelp,
+            body: context
+                .l10n
+                .contactLocalEmergencyServicesImmediatelyIfYouDevelop,
             isAlert: true,
           ),
           const SizedBox(height: 8),
           Text(
-            'Rujukan: panduan layanan NHS tentang keterlambatan dosis, '
-            'pengelolaan obat, dan penggunaan obat oleh pendamping.',
+            context.l10n.referenceNhsGuidanceOnDelayedDosesMedicationManagement,
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],

@@ -1,7 +1,15 @@
 # Backend Firebase MEDITRACE
 
-Backend Cloud Functions untuk fitur grup keluarga dan push notification
-MEDITRACE. Tidak ada backend shared hosting terpisah.
+Implementasi Cloud Functions untuk fitur grup keluarga dan push notification
+MEDITRACE, beserta Firestore Rules.
+
+> **Kesesuaian dengan aplikasi saat ini:** APK 1.0.2 memakai Firebase Auth,
+> Firestore, dan endpoint HTTP `/v1/*` dengan default
+> `https://meditrace.grownecro.tech`. Implementasi backend HTTP di repository
+> ada pada [Cloudflare Worker](../meditrace_worker/README.md), termasuk email
+> Resend. Deploy Functions di folder ini saja tidak mengalihkan APK ke
+> callable Functions. Panduan di bawah adalah jalur Functions alternatif
+> yang perlu disesuaikan dengan klien sebelum dipakai.
 
 Backend grup keluarga memakai Firebase Auth, Cloud Firestore, Cloud Functions
 dan Firebase Cloud Messaging. Tidak perlu Laravel/MySQL/share hosting untuk
@@ -39,12 +47,13 @@ harus didaftarkan terpisah bila memakai sertifikat release berbeda.
 3. Tambahkan SHA-1 dan SHA-256 sertifikat debug/release ke aplikasi Android
    Firebase. Google OAuth Android client harus cocok dengan package dan SHA.
    Gunakan Web Client ID dari proyek Firebase/Google Cloud yang sama.
-4. Salin `../meditrace_app/config/app.example.env` menjadi `app.local.env`.
-   Isi `GOOGLE_WEB_CLIENT_ID` (OAuth web client ID), `FIREBASE_API_KEY`,
-   `FIREBASE_APP_ID`, `FIREBASE_MESSAGING_SENDER_ID`, dan
-   `FIREBASE_PROJECT_ID` dari konfigurasi aplikasi Android Firebase.
-   Ini ID konfigurasi publik, **bukan** client secret/service account.
-   File lokal diabaikan Git. Jangan masukkan service-account JSON ke APK.
+4. Pasang konfigurasi Firebase Android di
+   `../meditrace_app/android/app/google-services.json`. Untuk override OAuth,
+   salin `../meditrace_app/config/app.example.env` menjadi `app.local.env`
+   dan isi `GOOGLE_WEB_CLIENT_ID` (OAuth web client ID). Klien saat ini
+   membaca Firebase dari berkas native; entri `FIREBASE_*` pada contoh env
+   tidak menggantikan `google-services.json`. Ini konfigurasi aplikasi,
+   **bukan** client secret/service account. Jangan masukkan service account ke APK.
 5. Pastikan perangkat mengizinkan notifikasi. Login Google akan mendaftarkan
    token FCM ke Functions; anggota lain akan menerima push saat ada alert.
 

@@ -1,3 +1,5 @@
+import '../../l10n/localization.dart';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -11,7 +13,7 @@ class MedicationScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final app = context.watch<AppProvider>();
     return Scaffold(
-      appBar: AppBar(title: const Text('Jadwal Obat')),
+      appBar: AppBar(title: Text(context.l10n.medicationSchedule)),
       body: app.schedules.isEmpty
           ? Center(
               child: Padding(
@@ -26,20 +28,20 @@ class MedicationScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      'Belum ada jadwal obat',
+                      context.l10n.noMedicationSchedulesYet,
                       style: Theme.of(context).textTheme.titleMedium,
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 6),
-                    const Text(
-                      'Tambahkan pengingat agar obat tidak terlewat.',
+                    Text(
+                      context.l10n.addAReminderToAvoidMissingMedication,
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 16),
                     FilledButton.icon(
                       onPressed: () => _addSchedule(context),
                       icon: const Icon(Icons.alarm_add_outlined),
-                      label: const Text('Tambah jadwal'),
+                      label: Text(context.l10n.addSchedule),
                     ),
                   ],
                 ),
@@ -86,7 +88,7 @@ class MedicationScreen extends StatelessWidget {
                                   ),
                             ),
                             subtitle: Text(
-                              'Setiap hari',
+                              context.l10n.everyDay,
                               style: TextStyle(
                                 color: scheme.onPrimaryContainer,
                               ),
@@ -95,7 +97,7 @@ class MedicationScreen extends StatelessWidget {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 PopupMenuButton<String>(
-                                  tooltip: 'Aksi jadwal',
+                                  tooltip: context.l10n.scheduleActions,
                                   onSelected: (action) {
                                     if (action == 'delete') {
                                       _confirmRemove(context, schedule);
@@ -110,7 +112,9 @@ class MedicationScreen extends StatelessWidget {
                                           Icons.delete_outline,
                                           color: scheme.error,
                                         ),
-                                        title: const Text('Hapus jadwal'),
+                                        title: Text(
+                                          context.l10n.deleteSchedule,
+                                        ),
                                       ),
                                     ),
                                   ],
@@ -130,9 +134,7 @@ class MedicationScreen extends StatelessWidget {
                                     onPressed: () =>
                                         _confirmDose(context, schedule, false),
                                     icon: const Icon(Icons.check_circle),
-                                    label: const Text(
-                                      'Sudah diminum hari ini · batalkan',
-                                    ),
+                                    label: Text(context.l10n.takenTodayUndo),
                                   )
                                 else
                                   FilledButton.icon(
@@ -144,7 +146,7 @@ class MedicationScreen extends StatelessWidget {
                                           )
                                         : null,
                                     icon: const Icon(Icons.check),
-                                    label: const Text('Sudah minum'),
+                                    label: Text(context.l10n.taken),
                                   ),
                               ],
                             ),
@@ -159,7 +161,7 @@ class MedicationScreen extends StatelessWidget {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _addSchedule(context),
         icon: const Icon(Icons.add),
-        label: const Text('Tambah jadwal'),
+        label: Text(context.l10n.addSchedule),
       ),
     );
   }
@@ -171,18 +173,21 @@ class MedicationScreen extends StatelessWidget {
     final remove = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Hapus jadwal obat?'),
+        title: Text(context.l10n.deleteMedicationSchedule),
         content: Text(
-          'Jadwal ${schedule.label} pukul ${schedule.timeText} akan dihapus.',
+          context.l10n.scheduleAtWillBeDeleted(
+            (schedule.label).toString(),
+            (schedule.timeText).toString(),
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Batal'),
+            child: Text(context.l10n.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Hapus'),
+            child: Text(context.l10n.delete),
           ),
         ],
       ),
@@ -190,9 +195,9 @@ class MedicationScreen extends StatelessWidget {
     if (remove == true && context.mounted) {
       await context.read<AppProvider>().removeSchedule(schedule.id);
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Jadwal berhasil dihapus.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(context.l10n.scheduleDeleted)));
       }
     }
   }
@@ -205,20 +210,26 @@ class MedicationScreen extends StatelessWidget {
     final proceed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(confirmed ? 'Obat sudah diminum?' : 'Batalkan konfirmasi?'),
+        title: Text(
+          confirmed
+              ? context.l10n.haveYouTakenTheMedication
+              : context.l10n.revokeConfirmation,
+        ),
         content: Text(
           confirmed
-              ? 'Konfirmasi hanya jika obat dari ruang ini benar-benar sudah diminum, bukan sekadar diambil dari kotak.'
-              : 'Status diminum hari ini akan dibatalkan.',
+              ? context.l10n.confirmOnlyIfTheMedicationFromThisCompartment
+              : context.l10n.todaySTakenStatusWillBeRevoked,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Kembali'),
+            child: Text(context.l10n.back),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: Text(confirmed ? 'Ya, sudah diminum' : 'Batalkan status'),
+            child: Text(
+              confirmed ? context.l10n.yesTaken : context.l10n.revokeStatus,
+            ),
           ),
         ],
       ),
@@ -242,15 +253,14 @@ class MedicationScreen extends StatelessWidget {
     await app.saveSchedule(
       MedicationSchedule(
         id: app.createScheduleId(),
-        label: 'Jadwal obat',
+        label: context.l10n.medicationSchedule2,
         hour: time.hour,
         minute: time.minute,
       ),
     );
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Jadwal berhasil ditambahkan.')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(context.l10n.scheduleAdded)));
     }
   }
 
@@ -267,9 +277,8 @@ class MedicationScreen extends StatelessWidget {
       schedule.copyWith(hour: time.hour, minute: time.minute),
     );
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Jadwal berhasil diperbarui.')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(context.l10n.scheduleUpdated)));
     }
   }
 }

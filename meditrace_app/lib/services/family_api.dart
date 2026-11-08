@@ -1,3 +1,5 @@
+import '../l10n/localization.dart';
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
@@ -12,6 +14,9 @@ import 'package:http/http.dart' as http;
 
 /// Firebase facade; schedules and BLE data remain in local SQLite.
 class FamilyApi {
+  FamilyApi({this.languageCode});
+  final String Function()? languageCode;
+  AppLocalizations get l10n => stringsForLanguage(languageCode?.call() ?? 'en');
   static const _googleWebClientId = String.fromEnvironment(
     'GOOGLE_WEB_CLIENT_ID',
     // Client ID bukan rahasia; fallback ini sama dengan client web pada
@@ -35,9 +40,7 @@ class FamilyApi {
   Future<Map<String, dynamic>> loginWithGoogle() async {
     _requireConfigured();
     if (_googleWebClientId.isEmpty) {
-      throw const FamilyApiException(
-        'GOOGLE_WEB_CLIENT_ID belum diisi. Lengkapi konfigurasi Firebase dan OAuth.',
-      );
+      throw FamilyApiException(l10n.googleClientNotConfigured);
     }
     try {
       final signIn = GoogleSignIn.instance;
@@ -47,7 +50,7 @@ class FamilyApi {
       final account = await signIn.authenticate();
       final idToken = account.authentication.idToken;
       if (idToken == null || idToken.isEmpty) {
-        throw const FamilyApiException('Google tidak mengirim ID token.');
+        throw FamilyApiException(l10n.googleTokenMissing);
       }
       await FirebaseAuth.instance.signInWithCredential(
         GoogleAuthProvider.credential(idToken: idToken),
@@ -61,11 +64,13 @@ class FamilyApi {
       rethrow;
     } on GoogleSignInException catch (error) {
       throw FamilyApiException(
-        'Login Google gagal: ${error.description ?? error.code.name}',
+        l10n.googleSignInFailed(
+          (error.description ?? error.code.name).toString(),
+        ),
       );
     } on FirebaseAuthException catch (error) {
       throw FamilyApiException(
-        'Login Firebase gagal: ${error.message ?? error.code}',
+        l10n.firebaseSignInFailed((error.message ?? error.code).toString()),
       );
     }
   }
@@ -79,9 +84,7 @@ class FamilyApi {
         await _storage.delete(key: _lastTokenKey);
       }
     } catch (_) {
-      throw const FamilyApiException(
-        'Untuk keluar dengan aman, hubungkan internet agar notifikasi HP ini dihentikan dahulu.',
-      );
+      throw FamilyApiException(l10n.signOutNeedsInternet);
     }
     await FirebaseAuth.instance.signOut();
     if (_googleInitialization != null) await GoogleSignIn.instance.signOut();
@@ -271,9 +274,7 @@ class FamilyApi {
   ]) async {
     _requireSignedIn();
     if (!backendConfigured) {
-      throw const FamilyApiException(
-        'Backend keluarga belum aktif. Fitur grup dan push menyusul.',
-      );
+      throw FamilyApiException(l10n.familyBackendInactive);
     }
     try {
       final token = await FirebaseAuth.instance.currentUser!.getIdToken();
@@ -281,7 +282,7 @@ class FamilyApi {
         '${_backendUrl.replaceFirst(RegExp(r'/+$'), '')}/v1/$name',
       );
       if (url.scheme != 'https') {
-        throw const FamilyApiException('Backend keluarga harus memakai HTTPS.');
+        throw FamilyApiException(l10n.familyBackendRequiresHttps);
       }
       final response = await http
           .post(
@@ -295,13 +296,13 @@ class FamilyApi {
           .timeout(const Duration(seconds: 20));
       final decoded = jsonDecode(response.body);
       if (decoded is! Map) {
-        throw const FamilyApiException('Balasan backend tidak valid.');
+        throw FamilyApiException(l10n.invalidBackendResponse);
       }
       final result = Map<String, dynamic>.from(decoded);
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw FamilyApiException(
           (result['error'] as String?) ??
-              'Backend gagal (${response.statusCode}).',
+              l10n.backendFailed((response.statusCode).toString()),
           requestId: result['requestId'] as String?,
           detail: result['detail'] as String?,
         );
@@ -310,13 +311,11 @@ class FamilyApi {
     } on FamilyApiException {
       rethrow;
     } on TimeoutException {
-      throw const FamilyApiException('Backend keluarga tidak merespons.');
+      throw FamilyApiException(l10n.familyBackendTimeout);
     } on http.ClientException {
-      throw const FamilyApiException(
-        'Tidak dapat menghubungi backend keluarga.',
-      );
+      throw FamilyApiException(l10n.familyBackendUnreachable);
     } on FormatException {
-      throw const FamilyApiException('Balasan backend tidak valid.');
+      throw FamilyApiException(l10n.invalidBackendResponse);
     }
   }
 
@@ -327,16 +326,14 @@ class FamilyApi {
 
   void _requireConfigured() {
     if (!_configured) {
-      throw const FamilyApiException(
-        'Firebase belum dikonfigurasi. Isi FIREBASE_* lalu build ulang aplikasi.',
-      );
+      throw FamilyApiException(l10n.firebaseNotConfigured);
     }
   }
 
   void _requireSignedIn() {
     _requireConfigured();
     if (FirebaseAuth.instance.currentUser == null) {
-      throw const FamilyApiException('Silakan masuk dengan Google.');
+      throw FamilyApiException(l10n.googleSignInRequired);
     }
   }
 

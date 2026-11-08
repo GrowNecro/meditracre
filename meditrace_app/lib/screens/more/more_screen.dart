@@ -1,3 +1,5 @@
+import '../../l10n/localization.dart';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -18,7 +20,9 @@ class MoreScreen extends StatefulWidget {
 }
 
 class _MoreScreenState extends State<MoreScreen> {
-  final _api = FamilyApi();
+  late final _api = FamilyApi(
+    languageCode: () => context.read<AppProvider>().languageCode,
+  );
   bool _checkingAccount = true;
   bool _signedIn = false;
   String? _accountEmail;
@@ -42,19 +46,21 @@ class _MoreScreenState extends State<MoreScreen> {
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Undangan keluarga'),
-        content: Text('Kode undangan $code sudah siap digunakan.'),
+        title: Text(context.l10n.familyInvitation),
+        content: Text(
+          context.l10n.invitationCodeIsReadyToUse((code).toString()),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Nanti'),
+            child: Text(context.l10n.later),
           ),
           FilledButton(
             onPressed: () {
               Navigator.pop(dialogContext);
               _showFamilyJoin(code);
             },
-            child: const Text('Gabung sekarang'),
+            child: Text(context.l10n.joinNow),
           ),
         ],
       ),
@@ -63,7 +69,11 @@ class _MoreScreenState extends State<MoreScreen> {
 
   void _showFamilyJoin(String code) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Masukkan kode $code di bagian Keluarga')),
+      SnackBar(
+        content: Text(
+          context.l10n.enterCodeInTheFamilySection((code).toString()),
+        ),
+      ),
     );
   }
 
@@ -151,10 +161,41 @@ class _MoreScreenState extends State<MoreScreen> {
   Widget build(BuildContext context) {
     final app = context.watch<AppProvider>();
     return Scaffold(
-      appBar: AppBar(title: const Text('Profil')),
+      appBar: AppBar(title: Text(context.l10n.profile)),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.language),
+              title: Text(context.l10n.language),
+              subtitle: DropdownButton<String>(
+                key: const ValueKey('language-selector'),
+                isExpanded: true,
+                itemHeight: null,
+                value: app.languageCode,
+                onChanged: (value) async {
+                  if (value == null) return;
+                  try {
+                    await app.setLanguage(value);
+                  } catch (_) {
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(context.l10n.languageSaveFailed)),
+                    );
+                  }
+                },
+                items: const [
+                  DropdownMenuItem(value: 'en', child: Text('English')),
+                  DropdownMenuItem(
+                    value: 'id',
+                    child: Text('Bahasa Indonesia'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -179,15 +220,15 @@ class _MoreScreenState extends State<MoreScreen> {
                             Text(
                               _signedIn
                                   ? (_accountEmail ??
-                                        'Email akun tidak tersedia')
-                                  : 'Belum masuk',
+                                        context.l10n.accountEmailUnavailable)
+                                  : context.l10n.notSignedIn,
                               style: Theme.of(context).textTheme.bodySmall,
                             ),
                           ],
                         ),
                       ),
                       IconButton(
-                        tooltip: 'Lengkapi profil',
+                        tooltip: context.l10n.completeProfile,
                         onPressed: () => _editProfile(context, app),
                         icon: const Icon(Icons.edit_outlined),
                       ),
@@ -207,13 +248,13 @@ class _MoreScreenState extends State<MoreScreen> {
                       child: FilledButton.icon(
                         onPressed: _checkingAccount ? null : () => _signIn(app),
                         icon: const Icon(Icons.login),
-                        label: const Text('Masuk dengan Google'),
+                        label: Text(context.l10n.signInWithGoogle),
                       ),
                     )
                   else
                     TextButton(
                       onPressed: _checkingAccount ? null : () => _signOut(app),
-                      child: const Text('Keluar dari akun'),
+                      child: Text(context.l10n.signOutOfAccount),
                     ),
                 ],
               ),
@@ -223,21 +264,23 @@ class _MoreScreenState extends State<MoreScreen> {
           Card(
             child: Column(
               children: [
-                const ListTile(
+                ListTile(
                   leading: Icon(Icons.health_and_safety_outlined),
-                  title: Text('Data kesehatan'),
-                  subtitle: Text('Informasi pasien dan kontak darurat'),
+                  title: Text(context.l10n.healthInformation),
+                  subtitle: Text(
+                    context.l10n.patientInformationAndEmergencyContacts,
+                  ),
                 ),
                 ListTile(
                   title: Text(
                     app.patientAge == null
-                        ? 'Umur belum diisi'
-                        : 'Umur ${app.patientAge} tahun',
+                        ? context.l10n.ageNotProvided
+                        : context.l10n.ageYears((app.patientAge).toString()),
                   ),
                   subtitle: Text(
                     app.emergencyPhone.isEmpty && app.emergencyEmail.isEmpty
-                        ? 'Kontak darurat belum diisi'
-                        : 'Kontak darurat sudah tersimpan',
+                        ? context.l10n.emergencyContactNotProvided
+                        : context.l10n.emergencyContactSaved,
                   ),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => _editProfile(context, app),
@@ -249,14 +292,16 @@ class _MoreScreenState extends State<MoreScreen> {
           Card(
             child: ListTile(
               leading: const Icon(Icons.system_update_outlined),
-              title: const Text('Perbarui aplikasi'),
-              subtitle: const Text(
-                'Unduh APK terbaru MEDITRACE dari GitHub Release.',
+              title: Text(context.l10n.updateApp),
+              subtitle: Text(
+                context.l10n.downloadTheLatestMeditraceApkFromGithubReleases,
               ),
               trailing: const Icon(Icons.open_in_new),
               onTap: () async {
                 try {
-                  await AppUpdateService.downloadLatestApk();
+                  await AppUpdateService.downloadLatestApk(
+                    languageCode: app.languageCode,
+                  );
                 } on AppUpdateException catch (error) {
                   if (!context.mounted) return;
                   ScaffoldMessenger.of(context)
@@ -271,11 +316,11 @@ class _MoreScreenState extends State<MoreScreen> {
               children: [
                 ListTile(
                   leading: const Icon(Icons.family_restroom),
-                  title: const Text('Keluarga'),
+                  title: Text(context.l10n.family),
                   subtitle: Text(
                     _signedIn
-                        ? 'Atur grup, caregiver, dan pemberitahuan'
-                        : 'Masuk untuk menghubungkan keluarga',
+                        ? context.l10n.manageGroupsCaregiversAndNotifications
+                        : context.l10n.signInToConnectWithFamily,
                   ),
                 ),
                 FamilyScreen(
@@ -292,11 +337,13 @@ class _MoreScreenState extends State<MoreScreen> {
             child: Consumer<BleProvider>(
               builder: (context, ble, _) => Column(
                 children: [
-                  const ListTile(
+                  ListTile(
                     leading: Icon(Icons.bluetooth_disabled),
-                    title: Text('Pengingat saat MEDITRACE tertinggal'),
+                    title: Text(context.l10n.reminderWhenMeditraceIsLeftBehind),
                     subtitle: Text(
-                      'Pasien diperingatkan 30 detik setelah terputus. Jika belum reconnect 5 menit kemudian, caregiver diberi tahu.',
+                      context
+                          .l10n
+                          .thePatientIsWarnedSecondsAfterDisconnectionIf,
                     ),
                   ),
                   Padding(
@@ -314,15 +361,22 @@ class _MoreScreenState extends State<MoreScreen> {
                           final message =
                               error ??
                               (emailFailed > 0
-                                  ? 'Peringatan tersimpan, tetapi email caregiver gagal dikirim.'
+                                  ? context
+                                        .l10n
+                                        .alertSavedButTheCaregiverEmailCouldNot
                                   : emailSent > 0
-                                  ? 'Peringatan dikirim ke $emailSent email caregiver.'
-                                  : 'Peringatan tersimpan dan sedang diproses untuk caregiver.');
+                                  ? context.l10n
+                                        .alertSentToCaregiverEmailAddresses(
+                                          (emailSent).toString(),
+                                        )
+                                  : context
+                                        .l10n
+                                        .alertSavedAndBeingProcessedForTheCaregiver);
                           ScaffoldMessenger.of(context)
                               .showSnackBar(SnackBar(content: Text(message)));
                         },
                         icon: const Icon(Icons.warning_amber_rounded),
-                        label: const Text('Saya meninggalkan MEDITRACE'),
+                        label: Text(context.l10n.iLeftMeditraceBehind),
                       ),
                     ),
                   ),
@@ -344,46 +398,46 @@ class _MoreScreenState extends State<MoreScreen> {
     final save = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Ubah profil'),
+        title: Text(context.l10n.editProfile),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextFormField(
               initialValue: name,
-              decoration: const InputDecoration(
-                labelText: 'Nama pengguna',
-                hintText: 'Contoh: Budi',
+              decoration: InputDecoration(
+                labelText: context.l10n.userName,
+                hintText: context.l10n.exampleBudi,
               ),
               onChanged: (value) => name = value,
             ),
             TextFormField(
               initialValue: family,
-              decoration: const InputDecoration(
-                labelText: 'Nama keluarga',
-                hintText: 'Contoh: Keluarga Budi',
+              decoration: InputDecoration(
+                labelText: context.l10n.familyName,
+                hintText: context.l10n.exampleBudiSFamily,
               ),
               onChanged: (value) => family = value,
             ),
             TextFormField(
               initialValue: ageText,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Umur'),
+              decoration: InputDecoration(labelText: context.l10n.age),
               onChanged: (value) => ageText = value,
             ),
             TextFormField(
               initialValue: emergencyPhone,
               keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(
-                labelText: 'Nomor darurat',
-                hintText: 'Contoh: 08123456789',
+              decoration: InputDecoration(
+                labelText: context.l10n.emergencyPhoneNumber,
+                hintText: context.l10n.example,
               ),
               onChanged: (value) => emergencyPhone = value,
             ),
             TextFormField(
               initialValue: emergencyEmail,
               keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(
-                labelText: 'Email darurat',
+              decoration: InputDecoration(
+                labelText: context.l10n.emergencyEmail,
                 hintText: 'keluarga@email.com',
               ),
               onChanged: (value) => emergencyEmail = value,
@@ -393,11 +447,11 @@ class _MoreScreenState extends State<MoreScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Batal'),
+            child: Text(context.l10n.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Simpan'),
+            child: Text(context.l10n.save),
           ),
         ],
       ),

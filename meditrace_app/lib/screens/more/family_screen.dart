@@ -1,3 +1,5 @@
+import '../../l10n/localization.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -24,7 +26,9 @@ class FamilyScreen extends StatefulWidget {
 }
 
 class _FamilyScreenState extends State<FamilyScreen> {
-  final _api = FamilyApi();
+  late final _api = FamilyApi(
+    languageCode: () => context.read<AppProvider>().languageCode,
+  );
   bool _busy = true;
   bool _signedIn = false;
   String? _error;
@@ -148,11 +152,11 @@ class _FamilyScreenState extends State<FamilyScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Batal'),
+            child: Text(context.l10n.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Simpan'),
+            child: Text(context.l10n.save),
           ),
         ],
       ),
@@ -188,7 +192,7 @@ class _FamilyScreenState extends State<FamilyScreen> {
       await showDialog<void>(
         context: context,
         builder: (dialogContext) => AlertDialog(
-          title: const Text('Kode undangan caregiver'),
+          title: Text(context.l10n.caregiverInvitationCode),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -200,30 +204,30 @@ class _FamilyScreenState extends State<FamilyScreen> {
                     ?.copyWith(letterSpacing: 2, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 12),
-              const Text('Berlaku 7 hari dan hanya bisa dipakai sekali.'),
+              Text(context.l10n.validForDaysAndCanOnlyBeUsed),
               const SizedBox(height: 16),
               OutlinedButton.icon(
                 onPressed: () async {
                   await Clipboard.setData(ClipboardData(text: code));
                   if (!dialogContext.mounted) return;
                   ScaffoldMessenger.of(dialogContext).showSnackBar(
-                    const SnackBar(content: Text('Kode berhasil disalin')),
+                    SnackBar(content: Text(dialogContext.l10n.codeCopied)),
                   );
                 },
                 icon: const Icon(Icons.copy_outlined),
-                label: const Text('Salin kode'),
+                label: Text(context.l10n.copyCode),
               ),
               FilledButton.icon(
                 onPressed: () => _emailInvitation(groupId, groupName, code),
                 icon: const Icon(Icons.email_outlined),
-                label: const Text('Kirim via email'),
+                label: Text(context.l10n.sendViaEmail),
               ),
             ],
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Tutup'),
+              child: Text(context.l10n.close),
             ),
           ],
         ),
@@ -240,12 +244,12 @@ class _FamilyScreenState extends State<FamilyScreen> {
     final submit = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Kirim undangan via email'),
+        title: Text(context.l10n.sendInvitationViaEmail),
         content: TextField(
           autofocus: true,
           keyboardType: TextInputType.emailAddress,
-          decoration: const InputDecoration(
-            labelText: 'Email penerima',
+          decoration: InputDecoration(
+            labelText: context.l10n.recipientEmail,
             hintText: 'keluarga@email.com',
           ),
           onChanged: (value) => email = value,
@@ -253,11 +257,11 @@ class _FamilyScreenState extends State<FamilyScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Batal'),
+            child: Text(context.l10n.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Kirim email'),
+            child: Text(context.l10n.sendEmail),
           ),
         ],
       ),
@@ -265,7 +269,7 @@ class _FamilyScreenState extends State<FamilyScreen> {
     if (submit != true || !mounted) return;
     final recipient = email.trim();
     if (!recipient.contains('@') || recipient.contains(' ')) {
-      setState(() => _error = 'Masukkan alamat email yang valid.');
+      setState(() => _error = context.l10n.enterAValidEmailAddress);
       return;
     }
     await _run(
@@ -283,21 +287,21 @@ class _FamilyScreenState extends State<FamilyScreen> {
     final submit = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Edit nama keluarga'),
+        title: Text(context.l10n.editFamilyName),
         content: TextField(
           autofocus: true,
           controller: TextEditingController(text: currentName),
-          decoration: const InputDecoration(labelText: 'Nama keluarga'),
+          decoration: InputDecoration(labelText: context.l10n.familyName),
           onChanged: (value) => name = value,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Batal'),
+            child: Text(context.l10n.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Simpan'),
+            child: Text(context.l10n.save),
           ),
         ],
       ),
@@ -310,15 +314,14 @@ class _FamilyScreenState extends State<FamilyScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Hapus grup keluarga?'),
+        title: Text(context.l10n.deleteFamilyGroup),
         content: Text(
-          'Grup "$name" akan dihapus dan anggota tidak dapat lagi '
-          'mengaksesnya. Tindakan ini tidak dapat dibatalkan.',
+          context.l10n.groupWillBeDeletedAndMembersWillLose((name).toString()),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Batal'),
+            child: Text(context.l10n.cancel),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
@@ -326,7 +329,7 @@ class _FamilyScreenState extends State<FamilyScreen> {
               foregroundColor: Theme.of(context).colorScheme.onError,
             ),
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Hapus'),
+            child: Text(context.l10n.delete),
           ),
         ],
       ),
@@ -347,7 +350,7 @@ class _FamilyScreenState extends State<FamilyScreen> {
     if (widget.embedded) return content;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Keluarga'),
+        title: Text(context.l10n.family),
         actions: [
           IconButton(
             onPressed: _busy ? null : _refresh,
@@ -375,9 +378,7 @@ class _FamilyScreenState extends State<FamilyScreen> {
             ),
           ),
         if (!_signedIn) ...[
-          const Text(
-            'Masuk dari kartu Profil di atas untuk mengatur grup dan berbagi peringatan dengan keluarga.',
-          ),
+          Text(context.l10n.signInUsingTheProfileCardAboveTo),
           if (!widget.embedded) ...[
             const SizedBox(height: 12),
             FilledButton.icon(
@@ -391,42 +392,44 @@ class _FamilyScreenState extends State<FamilyScreen> {
                       });
                     },
               icon: const Icon(Icons.account_circle),
-              label: const Text('Masuk dengan Google'),
+              label: Text(context.l10n.signInWithGoogle),
             ),
           ],
         ] else ...[
           if (!widget.embedded)
             ListTile(
               title: Text(_name),
-              subtitle: const Text('Akun sudah terhubung'),
+              subtitle: Text(context.l10n.accountConnected),
               trailing: TextButton(
                 onPressed: _busy ? null : () => _run(_logout),
-                child: const Text('Keluar'),
+                child: Text(context.l10n.signOut),
               ),
             ),
           if (!_api.backendConfigured)
-            const ListTile(
+            ListTile(
               leading: Icon(Icons.info_outline),
-              title: Text('Pengaturan grup belum aktif'),
+              title: Text(context.l10n.groupSettingsAreNotActiveYet),
               subtitle: Text(
-                'Fitur lokal tetap berjalan. Hubungkan backend untuk mengatur keluarga.',
+                context.l10n.localFeaturesRemainAvailableConnectTheBackendTo,
               ),
             )
           else ...[
             const Divider(),
-            const Text('Grup keluarga'),
-            const Padding(
+            Text(context.l10n.familyGroups),
+            Padding(
               padding: EdgeInsets.symmetric(vertical: 8),
               child: Text(
-                'Peringatan ruang obat kosong dan MEDITRACE terputus dikirim ke grup yang Anda miliki. Koneksi manual yang diputus tidak mengirim peringatan.',
+                context
+                    .l10n
+                    .alertsForEmptyCompartmentsAndMeditraceDisconnectionsAre,
               ),
             ),
             if (_activeGroupId != null)
-              const ListTile(
+              ListTile(
                 leading: Icon(Icons.notifications_active_outlined),
-                title: Text('Peringatan keluarga aktif'),
+                title: Text(context.l10n.familyAlertsActive),
                 subtitle: Text(
-                  'MEDITRACE akan mengirim peringatan ke grup keluarga Anda.',
+                  context.l10n.meditraceWillSendAlertsToYourFamilyGroup,
                 ),
                 contentPadding: EdgeInsets.zero,
               ),
@@ -435,7 +438,9 @@ class _FamilyScreenState extends State<FamilyScreen> {
                 child: ExpansionTile(
                   controlAffinity: ListTileControlAffinity.leading,
                   title: Text((item as Map)['name'].toString()),
-                  subtitle: Text('${item['members_count']} anggota'),
+                  subtitle: Text(
+                    context.l10n.members((item['members_count']).toString()),
+                  ),
                   trailing: item['owner_id'] != _userId
                       ? null
                       : PopupMenuButton<String>(
@@ -450,18 +455,18 @@ class _FamilyScreenState extends State<FamilyScreen> {
                               _deleteFamily(id, name);
                             }
                           },
-                          itemBuilder: (context) => const [
+                          itemBuilder: (context) => [
                             PopupMenuItem(
                               value: 'invite',
-                              child: Text('Undang caregiver'),
+                              child: Text(context.l10n.inviteCaregiver),
                             ),
                             PopupMenuItem(
                               value: 'edit',
-                              child: Text('Edit nama'),
+                              child: Text(context.l10n.editName),
                             ),
                             PopupMenuItem(
                               value: 'delete',
-                              child: Text('Hapus grup'),
+                              child: Text(context.l10n.deleteGroup),
                             ),
                           ],
                         ),
@@ -474,13 +479,15 @@ class _FamilyScreenState extends State<FamilyScreen> {
                               ? Icons.star_outline
                               : Icons.person_outline,
                         ),
-                        title: Text(member['name']?.toString() ?? 'Pengguna'),
+                        title: Text(
+                          member['name']?.toString() ?? context.l10n.user,
+                        ),
                         subtitle: Text(
                           member['email']?.toString() ??
-                              'Email belum terdaftar',
+                              context.l10n.emailNotRegisteredYet,
                         ),
                         trailing: member['is_owner'] == true
-                            ? const Text('Pemilik')
+                            ? Text(context.l10n.owner)
                             : null,
                       ),
                   ],
@@ -490,21 +497,21 @@ class _FamilyScreenState extends State<FamilyScreen> {
               onPressed: _busy
                   ? null
                   : () => _textAction(
-                      'Buat grup',
-                      'Nama keluarga',
+                      context.l10n.createGroup,
+                      context.l10n.familyName,
                       _api.createFamily,
                     ),
-              child: const Text('Buat grup keluarga'),
+              child: Text(context.l10n.createFamilyGroup),
             ),
             OutlinedButton(
               onPressed: _busy
                   ? null
                   : () => _textAction(
-                      'Gabung grup',
-                      'Kode undangan',
+                      context.l10n.joinGroup,
+                      context.l10n.invitationCode,
                       _api.joinFamily,
                     ),
-              child: const Text('Masukkan kode undangan'),
+              child: Text(context.l10n.enterInvitationCode),
             ),
           ],
         ],
@@ -521,7 +528,7 @@ class _FamilyScreenState extends State<FamilyScreen> {
       _ => null,
     };
     if (id == null || id < 1) {
-      throw StateError('ID grup keluarga tidak valid.');
+      throw StateError(context.l10n.invalidFamilyGroupId);
     }
     return id;
   }

@@ -1,3 +1,5 @@
+import '../l10n/localization.dart';
+
 import 'dart:async';
 import 'dart:convert';
 
@@ -10,6 +12,7 @@ import '../services/ble_service.dart';
 import 'app_provider.dart';
 
 class BleProvider extends ChangeNotifier {
+  AppLocalizations get l10n => _app.l10n;
   BleProvider(this._service, this._app) {
     _subscriptions.add(
       _service.scanResults.listen((value) {
@@ -244,7 +247,7 @@ class BleProvider extends ChangeNotifier {
   });
 
   Future<void> updateFirmware(Uint8List firmware) async {
-    if (firmware.isEmpty) throw const BleException('File firmware kosong.');
+    if (firmware.isEmpty) throw BleException(l10n.theFirmwareFileIsEmpty);
     firmwareProgress = 0;
     notifyListeners();
     final crc = _crc32(firmware);
@@ -499,9 +502,10 @@ class BleProvider extends ChangeNotifier {
       final numbers = (compartments.toList()..sort()).join(', ');
       await _app.familyAlerts.report(
         kind: 'low_supply',
-        title: 'Obat di kompartemen $numbers kosong',
-        details:
-            'Sensor MEDITRACE mendeteksi kompartemen $numbers kosong. Periksa dan isi ulang obat.',
+        title: l10n.compartmentIsEmpty((numbers).toString()),
+        details: l10n.meditraceDetectedThatCompartmentIsEmptyCheckAnd(
+          (numbers).toString(),
+        ),
       );
     } catch (_) {
       // Status sensor dan notifikasi lokal tidak bergantung pada internet.
@@ -560,8 +564,8 @@ class BleProvider extends ChangeNotifier {
           : now.difference(_disconnectedAt!).inMilliseconds;
       await _app.familyAlerts.report(
         kind: 'separation_escalation',
-        title: 'MEDITRACE terputus dari HP',
-        details: 'Pasien telah diperingatkan setelah 30 detik. MEDITRACE belum terhubung kembali 5 menit kemudian. Periksa jarak dan daya perangkat.',
+        title: l10n.meditraceDisconnectedFromPhone,
+        details: l10n.thePatientWasWarnedAfterSecondsMeditraceHas,
       );
       await _app.addEvent(
         DoseEvent(
@@ -590,8 +594,8 @@ class BleProvider extends ChangeNotifier {
     try {
       final result = await _app.familyAlerts.report(
         kind: 'medbox_left_behind',
-        title: 'Pasien melaporkan MEDITRACE tertinggal',
-        details: 'Pasien mengonfirmasi bahwa kotak obat MEDITRACE tertinggal.',
+        title: l10n.patientReportedMeditraceLeftBehind,
+        details: l10n.thePatientConfirmedThatTheMeditraceMedicationBox,
       );
       await _app.addEvent(
         DoseEvent(
@@ -603,10 +607,7 @@ class BleProvider extends ChangeNotifier {
       return result;
     } catch (_) {
       // Relay akan mencoba ulang ketika koneksi internet tersedia.
-      return {
-        'ok': false,
-        'error': 'Peringatan gagal dikirim. Periksa login dan grup keluarga.',
-      };
+      return {'ok': false, 'error': l10n.couldNotSendTheAlertCheckYourSign};
     }
   }
 
@@ -699,9 +700,11 @@ class BleProvider extends ChangeNotifier {
     try {
       await _app.familyAlerts.report(
         kind: 'dose_status',
-        title: 'Status obat: sudah diminum',
-        details:
-            'Obat pada ruang ${event.sensorId ?? '-'} tercatat sudah diminum (${event.status}).',
+        title: l10n.medicationStatusTaken,
+        details: l10n.medicationInCompartmentWasRecordedAsTaken(
+          (event.sensorId ?? '-').toString(),
+          (event.status).toString(),
+        ),
       );
     } catch (_) {
       // Riwayat lokal tetap tersimpan jika relay keluarga belum tersedia.
@@ -720,11 +723,15 @@ class BleProvider extends ChangeNotifier {
 
   Future<void> _showScheduledDoseAlertSafely(DoseEvent event) async {
     try {
-      final room = event.sensorId == null ? '' : ' ruang ${event.sensorId}';
+      final room = event.sensorId == null
+          ? ''
+          : l10n.compartment((event.sensorId).toString());
       await _app.notifications.showScheduledDoseAlert(
         event.state == false
-            ? 'Jadwal obat$room: ruang kosong, isi ulang dulu.'
-            : 'Waktunya minum obat$room.',
+            ? l10n.medicationScheduleCompartmentEmptyRefillFirst(
+                (room).toString(),
+              )
+            : l10n.timeToTakeMedication((room).toString()),
       );
     } catch (_) {
       // Catatan event tetap tersimpan jika notifikasi Android gagal.

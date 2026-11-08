@@ -1,6 +1,12 @@
 name: Release MEDITRACE
 
 on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag v* yang sudah ada dan berisi konfigurasi release ini'
+        required: true
+        type: string
   push:
     tags:
       - 'v*'
@@ -8,12 +14,51 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+
 jobs:
   build-release:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: refs/tags/${{ inputs.tag || github.ref_name }}
+
+      - name: Validate release tag
+        run: |
+          git check-ref-format "refs/tags/$RELEASE_TAG"
+          if [[ "$RELEASE_TAG" != v* ]]; then
+            echo "::error::Release harus memakai tag dengan awalan v."
+            exit 1
+          fi
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Validate release configuration
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          python -m unittest discover -s scripts/ci -p 'test_*.py'
+          python scripts/ci/prepare_android_release.py \
+            --firebase-path meditrace_app/android/app/google-services.json \
+            --keystore-path "$RUNNER_TEMP/meditrace-release.jks"
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -25,47 +70,76 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: '3.47.6'
           cache: true
 
-      - name: Configure Firebase
-        working-directory: meditrace_app
+      - name: Validate Android signing key
         env:
-          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/meditrace-release.jks
         run: |
-          if [ -z "$GOOGLE_SERVICES_JSON" ]; then
-            echo "::error::Repository secret GOOGLE_SERVICES_JSON belum diisi"
-            exit 1
-          fi
-          mkdir -p android/app
-          printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
+          python scripts/ci/verify_android_oauth.py \
+            --firebase-path meditrace_app/android/app/google-services.json \
+            --keystore-path "$ANDROID_KEYSTORE_PATH"
+
+      - name: Check Flutter application
+        working-directory: meditrace_app
+        run: |
+          flutter pub get --enforce-lockfile
+          flutter gen-l10n
+          flutter analyze
+          flutter test
 
       - name: Build Android APK
         working-directory: meditrace_app
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/meditrace-release.jks
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          flutter pub get
-          flutter build apk --release
+          flutter build apk --release --no-pub
           cp build/app/outputs/flutter-apk/app-release.apk ../meditrace.apk
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.x'
+      - name: Remove Android signing material
+        if: always()
+        run: rm -f "$RUNNER_TEMP/meditrace-release.jks" meditrace_app/android/app/google-services.json
 
       - name: Install PlatformIO
-        run: pip install platformio
+        run: python -m pip install platformio==6.2.0
 
       - name: Build ESP32-C3 firmware
         working-directory: kodee/meditrace_full_esp32_c3
         run: |
-          pio run
+          python -m platformio run
           cp .pio/build/esp32-c3/firmware.bin ../../meditrace-esp32-c3.bin
+
+      - name: Save release build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: meditrace-${{ env.RELEASE_TAG }}
+          path: |
+            meditrace.apk
+            meditrace-esp32-c3.bin
+          if-no-files-found: error
 
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
-          gh release create "${GITHUB_REF_NAME}" \
+          if ! gh release view "$RELEASE_TAG" > /dev/null 2>&1; then
+            prerelease=()
+            if [[ "$RELEASE_TAG" == *-* ]]; then
+              prerelease=(--prerelease)
+            fi
+            gh release create "$RELEASE_TAG" \
+              --verify-tag --draft "${prerelease[@]}" \
+              --title "MEDITRACE $RELEASE_TAG" --generate-notes
+          fi
+          gh release upload "$RELEASE_TAG" \
             meditrace.apk \
             meditrace-esp32-c3.bin \
-            --title "MEDITRACE ${GITHUB_REF_NAME}" \
-            --generate-notes
+            --clobber
+          gh release edit "$RELEASE_TAG" --draft=false

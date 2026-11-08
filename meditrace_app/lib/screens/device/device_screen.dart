@@ -1,3 +1,5 @@
+import '../../l10n/localization.dart';
+
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 
@@ -39,15 +41,15 @@ class DeviceScreen extends StatelessWidget {
             ),
             title: Text(
               connected
-                  ? 'MEDITRACE terhubung'
+                  ? context.l10n.meditraceConnected
                   : connecting
-                  ? 'Menghubungkan MEDITRACE'
-                  : 'MEDITRACE belum terhubung',
+                  ? context.l10n.connectingToMeditrace
+                  : context.l10n.meditraceNotConnected,
             ),
             subtitle: Text(
               connecting
-                  ? 'Mohon tunggu sebentar...'
-                  : ble.deviceInfo?.deviceName ?? 'Tidak ada MEDITRACE',
+                  ? context.l10n.pleaseWait
+                  : ble.deviceInfo?.deviceName ?? context.l10n.noMeditrace,
             ),
           ),
         ),
@@ -57,32 +59,32 @@ class DeviceScreen extends StatelessWidget {
         FilledButton.icon(
           onPressed: connected && !ble.isBusy ? ble.refresh : null,
           icon: const Icon(Icons.refresh),
-          label: const Text('Perbarui kondisi MEDITRACE'),
+          label: Text(context.l10n.refreshMeditraceStatus),
         ),
         const SizedBox(height: 16),
         Card(
           child: ExpansionTile(
-            title: const Text('Detail perangkat'),
-            subtitle: const Text('Baterai, sinyal, dan informasi teknis'),
+            title: Text(context.l10n.deviceDetails),
+            subtitle: Text(context.l10n.batterySignalAndTechnicalInformation),
             children: [
               _Info(
-                label: ble.batteryEstimated ? 'Estimasi baterai' : 'Baterai',
+                label: ble.batteryEstimated
+                    ? context.l10n.estimatedBattery
+                    : context.l10n.battery,
                 value: '${ble.battery ?? ble.deviceInfo?.battery ?? 0}%',
               ),
               _Info(
-                label: 'Estimasi durasi',
+                label: context.l10n.estimatedRuntime,
                 value: BatteryEstimate.label(
                   ble.battery ?? ble.deviceInfo?.battery,
+                  languageCode: Localizations.localeOf(context).languageCode,
                 ),
               ),
               if (ble.batteryEstimated) ...[
-                const Padding(
+                Padding(
                   padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   child: Text(
-                    'Perkiraan dari baterai 1500 mAh dan arus rata-rata 150 mA '
-                    '(sekitar 10 jam). Mulai dari asumsi penuh saat pertama '
-                    'digunakan. Setelah dicas penuh, tandai penuh di bawah. '
-                    'Pengisian daya tidak terdeteksi otomatis.',
+                    context.l10n.estimatedFromAMahBatteryAndAnAverage,
                   ),
                 ),
                 TextButton.icon(
@@ -90,21 +92,24 @@ class DeviceScreen extends StatelessWidget {
                       ? () => _markBatteryFull(context, ble)
                       : null,
                   icon: const Icon(Icons.battery_charging_full),
-                  label: const Text('Tandai baterai penuh'),
+                  label: Text(context.l10n.markBatteryAsFull),
                 ),
               ],
               _Info(
-                label: 'Kuat sinyal',
+                label: context.l10n.signalStrength,
                 value: connected ? '${ble.rssi ?? '-'} dBm' : '-',
               ),
               _Info(
-                label: 'ID perangkat',
+                label: context.l10n.deviceId,
                 value: ble.deviceInfo?.deviceId ?? '-',
               ),
               _Info(label: 'Firmware', value: ble.deviceInfo?.firmware ?? '-'),
-              const _Info(label: 'Sumber jadwal', value: 'Aplikasi/ponsel'),
               _Info(
-                label: 'Event belum dikirim',
+                label: context.l10n.scheduleSource,
+                value: context.l10n.appPhone,
+              ),
+              _Info(
+                label: context.l10n.unsentEvents,
                 value: '${ble.pendingEvents}',
               ),
             ],
@@ -119,13 +124,12 @@ class DeviceScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Firmware ESP32-C3',
+                    context.l10n.espCFirmware,
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: 6),
-                  const Text(
-                    'Update terbaru diunduh dari GitHub Release lalu dikirim '
-                    'ke perangkat melalui BLE.',
+                  Text(
+                    context.l10n.theLatestUpdateIsDownloadedFromGithubReleases,
                   ),
                   const SizedBox(height: 12),
                   FilledButton.icon(
@@ -133,14 +137,14 @@ class DeviceScreen extends StatelessWidget {
                         ? null
                         : () => _downloadAndUpdateFirmware(context, ble),
                     icon: const Icon(Icons.cloud_download_outlined),
-                    label: const Text('Update firmware terbaru'),
+                    label: Text(context.l10n.updateToLatestFirmware),
                   ),
                   OutlinedButton.icon(
                     onPressed: ble.isBusy
                         ? null
                         : () => _selectAndUpdateFirmware(context, ble),
                     icon: const Icon(Icons.folder_open_outlined),
-                    label: const Text('Pilih file .bin lokal'),
+                    label: Text(context.l10n.chooseLocalBinFile),
                   ),
                   if (ble.firmwareProgress > 0) ...[
                     const SizedBox(height: 8),
@@ -152,9 +156,10 @@ class DeviceScreen extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       ble.firmwareProgress < 1
-                          ? 'Mengirim firmware '
-                                '${(ble.firmwareProgress * 100).round()}%...'
-                          : 'Firmware selesai dikirim. Perangkat sedang restart.',
+                          ? context.l10n.sendingFirmware(
+                              ((ble.firmwareProgress * 100).round()).toString(),
+                            )
+                          : context.l10n.firmwareSentTheDeviceIsRestarting,
                     ),
                   ],
                 ],
@@ -172,7 +177,7 @@ class DeviceScreen extends StatelessWidget {
                     MaterialPageRoute<void>(builder: (_) => const ScanScreen()),
                   ),
             icon: const Icon(Icons.bluetooth_searching),
-            label: const Text('Cari MEDITRACE'),
+            label: Text(context.l10n.findMeditrace),
           )
         else ...[
           TextButton.icon(
@@ -180,7 +185,7 @@ class DeviceScreen extends StatelessWidget {
                 ? null
                 : () => _confirmDisconnect(context, ble),
             icon: const Icon(Icons.link_off),
-            label: const Text('Putuskan koneksi'),
+            label: Text(context.l10n.disconnect),
           ),
         ],
         if (ble.errorMessage != null)
@@ -192,7 +197,7 @@ class DeviceScreen extends StatelessWidget {
     );
     return Scaffold(
       appBar: AppBar(
-        title: Text(ble.deviceInfo?.deviceName ?? 'Perangkat MEDITRACE'),
+        title: Text(ble.deviceInfo?.deviceName ?? context.l10n.meditraceDevice),
       ),
       body: content,
     );
@@ -202,19 +207,16 @@ class DeviceScreen extends StatelessWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Baterai sudah dicas penuh?'),
-        content: const Text(
-          'Estimasi akan dimulai lagi dari 100%. Gunakan hanya setelah '
-          'baterai benar-benar dicas penuh.',
-        ),
+        title: Text(context.l10n.isTheBatteryFullyCharged),
+        content: Text(context.l10n.theEstimateWillRestartFromUseThisOnly),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Batal'),
+            child: Text(context.l10n.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Tandai penuh'),
+            child: Text(context.l10n.markAsFull),
           ),
         ],
       ),
@@ -246,7 +248,9 @@ class DeviceScreen extends StatelessWidget {
     BleProvider ble,
   ) async {
     try {
-      final bytes = await FirmwareUpdateService.downloadLatestEsp32C3();
+      final bytes = await FirmwareUpdateService.downloadLatestEsp32C3(
+        languageCode: Localizations.localeOf(context).languageCode,
+      );
       if (!context.mounted) return;
       await _confirmAndUpdate(context, ble, bytes);
     } on FirmwareUpdateException catch (error) {
@@ -255,7 +259,10 @@ class DeviceScreen extends StatelessWidget {
       }
     } on Exception catch (error) {
       if (context.mounted) {
-        _showMessage(context, 'Gagal mengunduh firmware: $error');
+        _showMessage(
+          context,
+          context.l10n.couldNotDownloadFirmware((error).toString()),
+        );
       }
     }
   }
@@ -268,15 +275,16 @@ class DeviceScreen extends StatelessWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Update firmware?'),
+        title: Text(context.l10n.updateFirmware),
         content: Text(
-          'Perangkat akan restart setelah update selesai. '
-          '${bytes.length} byte akan dikirim melalui BLE.',
+          context.l10n.theDeviceWillRestartAfterTheUpdateBytes(
+            (bytes.length).toString(),
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Batal'),
+            child: Text(context.l10n.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
@@ -291,7 +299,7 @@ class DeviceScreen extends StatelessWidget {
     _showMessage(
       context,
       ble.errorMessage == null
-          ? 'Firmware selesai dikirim. Perangkat sedang restart.'
+          ? context.l10n.firmwareSentTheDeviceIsRestarting
           : ble.errorMessage!,
     );
   }
@@ -310,15 +318,16 @@ class DeviceScreen extends StatelessWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Putuskan MEDITRACE?'),
-        content: const Text(
-          'Setelah diputus, MEDITRACE tidak akan tersambung otomatis. '
-          'Anda perlu menghubungkannya kembali secara manual.',
+        title: Text(context.l10n.disconnectMeditrace),
+        content: Text(
+          context
+              .l10n
+              .afterDisconnectingMeditraceWillNotReconnectAutomaticallyYou,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Batal'),
+            child: Text(context.l10n.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),

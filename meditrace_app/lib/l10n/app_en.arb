@@ -1,0 +1,542 @@
+{
+  "@@locale": "en",
+  "welcomeToMeditrace": "Welcome to MEDITRACE",
+  "signInToUseFamilyFeaturesAndAccount": "Sign in to use family features and account sync, or continue as a guest to use local features.",
+  "continueAsGuest": "Continue as guest",
+  "signIn": "Sign in",
+  "meditraceUser": "MEDITRACE User",
+  "myFamily": "My Family",
+  "medicationTakenBasedOnRemoval": "Medication taken based on removal.",
+  "early": "early",
+  "onTime": "on time",
+  "late": "late",
+  "medicationTaken": "Medication taken {arg0}.",
+  "@medicationTaken": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "medicationStatusTaken": "Medication status: taken",
+  "medicationScheduledAsWasRecordedAsTaken": "Medication scheduled as {arg0} was recorded as taken ({arg1}).",
+  "@medicationScheduledAsWasRecordedAsTaken": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      },
+      "arg1": {
+        "type": "String"
+      }
+    }
+  },
+  "early2": "early",
+  "recorded": "recorded",
+  "theFirmwareFileIsEmpty": "The firmware file is empty.",
+  "compartmentIsEmpty": "Compartment {arg0} is empty",
+  "@compartmentIsEmpty": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "meditraceDetectedThatCompartmentIsEmptyCheckAnd": "MEDITRACE detected that compartment {arg0} is empty. Check and refill the medication.",
+  "@meditraceDetectedThatCompartmentIsEmptyCheckAnd": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "meditraceDisconnectedFromPhone": "MEDITRACE disconnected from phone",
+  "thePatientWasWarnedAfterSecondsMeditraceHas": "The patient was warned after 30 seconds. MEDITRACE has not reconnected 5 minutes later. Check the device distance and power.",
+  "patientReportedMeditraceLeftBehind": "Patient reported MEDITRACE left behind",
+  "thePatientConfirmedThatTheMeditraceMedicationBox": "The patient confirmed that the MEDITRACE medication box was left behind.",
+  "couldNotSendTheAlertCheckYourSign": "Could not send the alert. Check your sign-in and family group.",
+  "medicationInCompartmentWasRecordedAsTaken": "Medication in compartment {arg0} was recorded as taken ({arg1}).",
+  "@medicationInCompartmentWasRecordedAsTaken": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      },
+      "arg1": {
+        "type": "String"
+      }
+    }
+  },
+  "compartment": " compartment {arg0}",
+  "@compartment": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "medicationScheduleCompartmentEmptyRefillFirst": "Medication schedule{arg0}: compartment empty, refill first.",
+  "@medicationScheduleCompartmentEmptyRefillFirst": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "timeToTakeMedication": "Time to take medication{arg0}.",
+  "@timeToTakeMedication": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "meditraceConnected": "MEDITRACE connected",
+  "connectingToMeditrace": "Connecting to MEDITRACE",
+  "meditraceNotConnected": "MEDITRACE not connected",
+  "pleaseWait": "Please wait...",
+  "noMeditrace": "No MEDITRACE",
+  "refreshMeditraceStatus": "Refresh MEDITRACE status",
+  "deviceDetails": "Device details",
+  "batterySignalAndTechnicalInformation": "Battery, signal, and technical information",
+  "estimatedBattery": "Estimated battery",
+  "battery": "Battery",
+  "estimatedRuntime": "Estimated runtime",
+  "estimatedFromAMahBatteryAndAnAverage": "Estimated from a 1500 mAh battery and an average current of 150 mA (about 10 hours). Assumes a full battery on first use. After fully charging, mark it as full below. Charging is not detected automatically.",
+  "markBatteryAsFull": "Mark battery as full",
+  "signalStrength": "Signal strength",
+  "deviceId": "Device ID",
+  "scheduleSource": "Schedule source",
+  "unsentEvents": "Unsent events",
+  "espCFirmware": "ESP32-C3 firmware",
+  "theLatestUpdateIsDownloadedFromGithubReleases": "The latest update is downloaded from GitHub Releases and sent to the device over BLE.",
+  "updateToLatestFirmware": "Update to latest firmware",
+  "chooseLocalBinFile": "Choose local .bin file",
+  "sendingFirmware": "Sending firmware {arg0}%...",
+  "@sendingFirmware": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "firmwareSentTheDeviceIsRestarting": "Firmware sent. The device is restarting.",
+  "findMeditrace": "Find MEDITRACE",
+  "disconnect": "Disconnect",
+  "meditraceDevice": "MEDITRACE device",
+  "isTheBatteryFullyCharged": "Is the battery fully charged?",
+  "theEstimateWillRestartFromUseThisOnly": "The estimate will restart from 100%. Use this only after the battery is fully charged.",
+  "cancel": "Cancel",
+  "markAsFull": "Mark as full",
+  "couldNotDownloadFirmware": "Could not download firmware: {arg0}",
+  "@couldNotDownloadFirmware": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "updateFirmware": "Update firmware?",
+  "theDeviceWillRestartAfterTheUpdateBytes": "The device will restart after the update. {arg0} bytes will be sent over BLE.",
+  "@theDeviceWillRestartAfterTheUpdateBytes": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "disconnectMeditrace": "Disconnect MEDITRACE?",
+  "afterDisconnectingMeditraceWillNotReconnectAutomaticallyYou": "After disconnecting, MEDITRACE will not reconnect automatically. You will need to connect it again manually.",
+  "stopScanning": "Stop scanning",
+  "scanAgain": "Scan again",
+  "close": "Close",
+  "noMeditraceFoundYetMakeSureTheMedication": "No MEDITRACE found yet.\nMake sure the medication box is powered on, Bluetooth is enabled, and it is close to your phone.",
+  "tapToConnect": "Tap to connect",
+  "history": "History",
+  "clearLocalHistory": "Clear local history",
+  "noHistoryYet": "No history yet",
+  "medicationAndDeviceActivityWillAppearHere": "Medication and device activity will appear here.",
+  "compartment2": " · Compartment {arg0}",
+  "@compartment2": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "clearAllHistory": "Clear all history?",
+  "allLocalActivityWillBeDeletedAndCannot": "All local activity will be deleted and cannot be recovered.",
+  "delete": "Delete",
+  "medicationRemoved": "Medication removed",
+  "compartmentFilled": "Compartment filled",
+  "compartmentEmpty": "Compartment empty",
+  "compartmentClosed": "Compartment closed",
+  "compartmentOpened": "Compartment opened",
+  "medicationReminder": "Medication reminder",
+  "medicationTaken2": "Medication taken · {arg0}",
+  "@medicationTaken2": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "medicationConfirmationRevoked": "Medication confirmation revoked",
+  "medicationScheduleMissed": "Medication schedule missed",
+  "meditracePoweredBackOnAndConnected": "MEDITRACE powered back on and connected",
+  "meditracePoweredOnAndConnected": "MEDITRACE powered on and connected",
+  "meditraceConnectionLost": "MEDITRACE connection lost",
+  "warningMeditraceNotDetected": "Warning: MEDITRACE not detected",
+  "alertSentToFamily": "Alert sent to family",
+  "meditraceReconnected": "MEDITRACE reconnected",
+  "meditraceReportedLeftBehind": "MEDITRACE reported left behind",
+  "deviceActivity": "Device activity",
+  "familyNotifications": "Family notifications",
+  "alertsForCaregiversAndFamilyMembers": "Alerts for caregivers and family members",
+  "noFamilyNotificationsYet": "No family notifications yet",
+  "familyAlert": "Family alert",
+  "family": "Family",
+  "senderEmailUnavailable": "Sender email unavailable",
+  "acknowledge": "Acknowledge",
+  "meditraceLogo": "MEDITRACE logo",
+  "home": "Home",
+  "schedule": "Schedule",
+  "device": "Device",
+  "profile": "Profile",
+  "connectMeditraceToRefreshItsStatus": "Connect MEDITRACE to refresh its status.",
+  "welcome": "Welcome!",
+  "keepTrackOfYourMedicationScheduleToday": "Keep track of your medication schedule today.",
+  "meditraceActive": "MEDITRACE active",
+  "connectDevice": "Connect device",
+  "estimatedFromUsageTimeRatherThanVoltageMeasurement": "Estimated from usage time, rather than voltage measurement.",
+  "weakSignal": "Weak signal",
+  "keepMeditraceNearby": "Keep MEDITRACE nearby.",
+  "nextSchedule": "Next schedule",
+  "noMedicationSchedulesYet": "No medication schedules yet",
+  "waitForTheNextMedicationSchedule": "Wait for the next medication schedule",
+  "medicationIsNotAvailableInThisCompartmentYet": "Medication is not available in this compartment yet.",
+  "viewMedicationSchedule": "View medication schedule",
+  "taken": "Taken",
+  "medicationBox": "Medication box",
+  "viewAll": "View all",
+  "compartmentStatus": "Compartment status",
+  "complete": "Complete",
+  "needsRefill": "Needs refill",
+  "ofCompartmentsFilled": "{arg0} of {arg1} compartments filled",
+  "@ofCompartmentsFilled": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      },
+      "arg1": {
+        "type": "String"
+      }
+    }
+  },
+  "connectMeditraceToSeeContents": "Connect MEDITRACE to see contents",
+  "allCompartmentsAreFilled": "All compartments are filled.",
+  "refillMedicationBeforeTheNextSchedule": "Refill medication before the next schedule.",
+  "medicationSchedule": "Medication Schedule",
+  "addAReminderToAvoidMissingMedication": "Add a reminder to avoid missing medication.",
+  "addSchedule": "Add schedule",
+  "everyDay": "Every day",
+  "scheduleActions": "Schedule actions",
+  "deleteSchedule": "Delete schedule",
+  "takenTodayUndo": "Taken today · undo",
+  "deleteMedicationSchedule": "Delete medication schedule?",
+  "scheduleAtWillBeDeleted": "Schedule {arg0} at {arg1} will be deleted.",
+  "@scheduleAtWillBeDeleted": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      },
+      "arg1": {
+        "type": "String"
+      }
+    }
+  },
+  "scheduleDeleted": "Schedule deleted.",
+  "haveYouTakenTheMedication": "Have you taken the medication?",
+  "revokeConfirmation": "Revoke confirmation?",
+  "confirmOnlyIfTheMedicationFromThisCompartment": "Confirm only if the medication from this compartment has actually been taken, rather than simply removed from the box.",
+  "todaySTakenStatusWillBeRevoked": "Today's taken status will be revoked.",
+  "back": "Back",
+  "yesTaken": "Yes, taken",
+  "revokeStatus": "Revoke status",
+  "medicationSchedule2": "Medication schedule",
+  "scheduleAdded": "Schedule added.",
+  "scheduleUpdated": "Schedule updated.",
+  "save": "Save",
+  "caregiverInvitationCode": "Caregiver invitation code",
+  "validForDaysAndCanOnlyBeUsed": "Valid for 7 days and can only be used once.",
+  "codeCopied": "Code copied",
+  "copyCode": "Copy code",
+  "sendViaEmail": "Send via email",
+  "sendInvitationViaEmail": "Send invitation via email",
+  "recipientEmail": "Recipient email",
+  "sendEmail": "Send email",
+  "enterAValidEmailAddress": "Enter a valid email address.",
+  "editFamilyName": "Edit family name",
+  "familyName": "Family name",
+  "deleteFamilyGroup": "Delete family group?",
+  "groupWillBeDeletedAndMembersWillLose": "Group \"{arg0}\" will be deleted and members will lose access. This action cannot be undone.",
+  "@groupWillBeDeletedAndMembersWillLose": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "signInUsingTheProfileCardAboveTo": "Sign in using the Profile card above to manage groups and share alerts with your family.",
+  "signInWithGoogle": "Sign in with Google",
+  "accountConnected": "Account connected",
+  "signOut": "Sign out",
+  "groupSettingsAreNotActiveYet": "Group settings are not active yet",
+  "localFeaturesRemainAvailableConnectTheBackendTo": "Local features remain available. Connect the backend to manage your family.",
+  "familyGroups": "Family groups",
+  "alertsForEmptyCompartmentsAndMeditraceDisconnectionsAre": "Alerts for empty compartments and MEDITRACE disconnections are sent to groups you own. Manual disconnections do not send alerts.",
+  "familyAlertsActive": "Family alerts active",
+  "meditraceWillSendAlertsToYourFamilyGroup": "MEDITRACE will send alerts to your family group.",
+  "inviteCaregiver": "Invite caregiver",
+  "editName": "Edit name",
+  "deleteGroup": "Delete group",
+  "user": "User",
+  "emailNotRegisteredYet": "Email not registered yet",
+  "owner": "Owner",
+  "createGroup": "Create group",
+  "createFamilyGroup": "Create family group",
+  "joinGroup": "Join group",
+  "invitationCode": "Invitation code",
+  "enterInvitationCode": "Enter invitation code",
+  "invalidFamilyGroupId": "Invalid family group ID.",
+  "medicationUsageGuide": "Medication usage guide",
+  "importantNote": "Important note",
+  "thisIsGeneralInformationAndDoesNotReplace": "This is general information and does not replace instructions from your doctor, pharmacist, or medication label.",
+  "whyDoesSchedulingMatter": "Why does scheduling matter?",
+  "takingMedicationRegularlyAccordingToYourTreatmentPlan": "Taking medication regularly according to your treatment plan helps it work as intended. Use MEDITRACE reminders for support and follow your prescription instructions.",
+  "doNotChangeTheDoseYourself": "Do not change the dose yourself",
+  "skippingDelayingOrTakingDosesTooCloseTogether": "Skipping, delaying, or taking doses too close together can reduce benefits or increase the risk of side effects. Do not stop, increase, or double a dose without guidance from your doctor or pharmacist.",
+  "ifYouForgetADose": "If you forget a dose",
+  "instructionsVaryBetweenMedicationsCheckTheLabelOr": "Instructions vary between medications. Check the label or leaflet and contact your doctor or pharmacist if unsure. Do not automatically double a dose to make up for a missed one.",
+  "practicalGuide": "Practical guide",
+  "fillCompartmentsAccordingToThePrescriptionAndOriginal": "• Fill compartments according to the prescription and original medication label.\n• Tap “Taken” after the medication has actually been taken or used as instructed.\n• Record or ask about any bothersome effects.\n• Do not crush tablets or open capsules without guidance from a healthcare professional.",
+  "whenDoYouNeedUrgentHelp": "When do you need urgent help?",
+  "contactLocalEmergencyServicesImmediatelyIfYouDevelop": "Contact local emergency services immediately if you develop difficulty breathing or swelling of the face, lips, mouth, or throat after taking medication. For other concerning symptoms, contact your doctor or pharmacist.",
+  "referenceNhsGuidanceOnDelayedDosesMedicationManagement": "Reference: NHS guidance on delayed doses, medication management, and supporting someone with their medication.",
+  "familyInvitation": "Family invitation",
+  "invitationCodeIsReadyToUse": "Invitation code {arg0} is ready to use.",
+  "@invitationCodeIsReadyToUse": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "later": "Later",
+  "joinNow": "Join now",
+  "enterCodeInTheFamilySection": "Enter code {arg0} in the Family section",
+  "@enterCodeInTheFamilySection": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "accountEmailUnavailable": "Account email unavailable",
+  "notSignedIn": "Not signed in",
+  "completeProfile": "Complete profile",
+  "signOutOfAccount": "Sign out of account",
+  "healthInformation": "Health information",
+  "patientInformationAndEmergencyContacts": "Patient information and emergency contacts",
+  "ageNotProvided": "Age not provided",
+  "ageYears": "Age {arg0} years",
+  "@ageYears": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "emergencyContactNotProvided": "Emergency contact not provided",
+  "emergencyContactSaved": "Emergency contact saved",
+  "updateApp": "Update app",
+  "downloadTheLatestMeditraceApkFromGithubReleases": "Download the latest MEDITRACE APK from GitHub Releases.",
+  "manageGroupsCaregiversAndNotifications": "Manage groups, caregivers, and notifications",
+  "signInToConnectWithFamily": "Sign in to connect with family",
+  "reminderWhenMeditraceIsLeftBehind": "Reminder when MEDITRACE is left behind",
+  "thePatientIsWarnedSecondsAfterDisconnectionIf": "The patient is warned 30 seconds after disconnection. If it has not reconnected 5 minutes later, the caregiver is notified.",
+  "alertSavedButTheCaregiverEmailCouldNot": "Alert saved, but the caregiver email could not be sent.",
+  "alertSentToCaregiverEmailAddresses": "Alert sent to {arg0} caregiver email addresses.",
+  "@alertSentToCaregiverEmailAddresses": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "alertSavedAndBeingProcessedForTheCaregiver": "Alert saved and being processed for the caregiver.",
+  "iLeftMeditraceBehind": "I left MEDITRACE behind",
+  "editProfile": "Edit profile",
+  "userName": "User name",
+  "exampleBudiSFamily": "Example: Budi's Family",
+  "emergencyPhoneNumber": "Emergency phone number",
+  "emergencyEmail": "Emergency email",
+  "notAvailableYet": "Not available yet",
+  "hrMin": "{arg0} hr {arg1} min",
+  "@hrMin": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      },
+      "arg1": {
+        "type": "String"
+      }
+    }
+  },
+  "alertsFromCaregiversAndFamilyMembers": "Alerts from caregivers and family members",
+  "timeToTakeMedication2": "Time to take medication",
+  "openMeditraceNow": "{arg0} • {arg1}. Open MEDITRACE now.",
+  "@openMeditraceNow": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      },
+      "arg1": {
+        "type": "String"
+      }
+    }
+  },
+  "checkCompartment": "{arg0} • {arg1}. Check compartment {arg2}.",
+  "@checkCompartment": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      },
+      "arg1": {
+        "type": "String"
+      },
+      "arg2": {
+        "type": "String"
+      }
+    }
+  },
+  "dailyMeditraceMedicationReminders": "Daily MEDITRACE medication reminders",
+  "meditraceNotDetected": "MEDITRACE not detected",
+  "makeSureTheMedicationBoxHasNotBeen": "Make sure the medication box has not been left behind.",
+  "deviceAlerts": "Device alerts",
+  "meditraceConnectionAndRefillAlerts": "MEDITRACE connection and refill alerts",
+  "checkMeditraceContents": "Check MEDITRACE contents",
+  "thisMorningMakeSureTheMedicationCompartmentsAre": "This morning, make sure the medication compartments are filled for the next schedule.",
+  "meditraceIsMovingOutOfRange": "MEDITRACE is moving out of range",
+  "meditraceSignalIsWeakMakeSureTheMedication": "MEDITRACE signal is weak. Make sure the medication box is still with you.",
+  "meditraceNeedsARefill": "MEDITRACE needs a refill",
+  "oneOrMoreMedicationCompartmentsAreEmpty": "One or more medication compartments are empty.",
+  "meditraceAlarm": "MEDITRACE alarm",
+  "medicationTaken3": "Medication taken",
+  "meditraceMedicationStatus": "MEDITRACE medication status",
+  "meditraceFamilyAlert": "MEDITRACE family alert",
+  "alertsFromMeditraceFamilyMembers": "Alerts from MEDITRACE family members",
+  "medicationInTheBox": "Medication in the box",
+  "connectMeditraceToSeeEachCompartmentSStatus": "Connect MEDITRACE to see each compartment's status.",
+  "theSensorsCouldNotBeReadCheckThe": "The sensors could not be read. Check the PCF8575 and try reading the sensors again.",
+  "gettingSensorStatusFromMeditrace": "Getting sensor status from MEDITRACE...",
+  "notReadYet": "Not read yet",
+  "medicationAvailable": "Medication available",
+  "noMedication": "No medication",
+  "compartment3": "Compartment {arg0}",
+  "@compartment3": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "filled": "Filled",
+  "empty": "Empty",
+  "doorSensorUnavailable": "Door sensor unavailable",
+  "closed": "Closed",
+  "open": "Open",
+  "compartment4": "Compartment {arg0}",
+  "@compartment4": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "medication": "Medication: {arg0}",
+  "@medication": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "door": "Door: {arg0}",
+  "@door": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "members": "{arg0} members",
+  "@members": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "appPhone": "App/phone",
+  "age": "Age",
+  "exampleBudi": "Example: Budi",
+  "example": "Example: 08123456789",
+  "hr": "< 1 hr",
+  "apkDownloadFailed": "Could not download the latest APK.",
+  "appUpdatePageFailed": "Could not open the app update page.",
+  "googleClientNotConfigured": "GOOGLE_WEB_CLIENT_ID is missing. Complete the Firebase and OAuth configuration.",
+  "googleTokenMissing": "Google did not return an ID token.",
+  "googleSignInFailed": "Google sign-in failed: {arg0}",
+  "@googleSignInFailed": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "firebaseSignInFailed": "Firebase sign-in failed: {arg0}",
+  "@firebaseSignInFailed": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "signOutNeedsInternet": "Connect to the internet to stop notifications on this phone before signing out safely.",
+  "familyBackendInactive": "The family backend is not active yet. Group and push features will be available later.",
+  "familyBackendRequiresHttps": "The family backend must use HTTPS.",
+  "invalidBackendResponse": "Invalid backend response.",
+  "backendFailed": "Backend request failed ({arg0}).",
+  "@backendFailed": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "familyBackendTimeout": "The family backend did not respond.",
+  "familyBackendUnreachable": "Could not connect to the family backend.",
+  "firebaseNotConfigured": "Firebase is not configured. Set FIREBASE_* and rebuild the app.",
+  "googleSignInRequired": "Please sign in with Google.",
+  "firmwareUnavailable": "Online firmware is unavailable ({arg0}).",
+  "@firmwareUnavailable": {
+    "placeholders": {
+      "arg0": {
+        "type": "String"
+      }
+    }
+  },
+  "onlineFirmwareEmpty": "The online firmware file is empty.",
+  "invalidEsp32Firmware": "The file is not valid ESP32 firmware; update canceled.",
+  "language": "Language",
+  "languageSaveFailed": "Could not save language preference. Try again."
+}

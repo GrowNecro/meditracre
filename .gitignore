@@ -11,6 +11,7 @@ Thumbs.db
 **/.packages
 **/coverage/
 **/*.iml
+**/__pycache__/
 
 # Android/Gradle generated files
 .gradle-cache/

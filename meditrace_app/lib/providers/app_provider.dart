@@ -1,3 +1,5 @@
+import '../l10n/localization.dart';
+
 import 'dart:async';
 import 'dart:math';
 
@@ -22,8 +24,15 @@ class AppProvider extends ChangeNotifier {
   final NotificationService notifications = NotificationService();
   List<MedicationSchedule> schedules = [];
   List<DoseEvent> history = [];
-  String patientName = 'Pengguna MEDITRACE';
-  String familyName = 'Keluarga Saya';
+  String _languageCode = 'en';
+  String get languageCode => _languageCode;
+  AppLocalizations get l10n => stringsForLanguage(_languageCode);
+  String? _patientName;
+  String get patientName => _patientName ?? l10n.meditraceUser;
+  set patientName(String value) => _patientName = value;
+  String? _familyName;
+  String get familyName => _familyName ?? l10n.myFamily;
+  set familyName(String value) => _familyName = value;
   int? patientAge;
   String emergencyPhone = '';
   String emergencyEmail = '';
@@ -58,6 +67,14 @@ class AppProvider extends ChangeNotifier {
 
   Future<void> initialize() async {
     try {
+      final saved = await _database.getSetting('language_code');
+      _languageCode = saved == 'id' ? 'id' : 'en';
+      notifyListeners();
+    } catch (_) {
+      // English is the default when local storage is unavailable.
+    }
+    notifications.languageCode = _languageCode;
+    try {
       await notifications.initialize();
     } catch (_) {
       // Plugin native tidak tersedia pada unit/widget test.
@@ -75,8 +92,8 @@ class AppProvider extends ChangeNotifier {
       // Firebase belum dikonfigurasi pada build lokal/test.
     }
     try {
-      patientName = await _database.getSetting('patient_name') ?? patientName;
-      familyName = await _database.getSetting('family_name') ?? familyName;
+      _patientName = await _database.getSetting('patient_name');
+      _familyName = await _database.getSetting('family_name');
       patientAge = int.tryParse(
         await _database.getSetting('patient_age') ?? '',
       );
@@ -213,15 +230,15 @@ class AppProvider extends ChangeNotifier {
   String doseRemovalNotificationText(DoseEvent event) {
     final schedule = _scheduleForDoseEvent(event);
     if (schedule == null) {
-      return 'Obat diminum berdasarkan pengambilan.';
+      return l10n.medicationTakenBasedOnRemoval;
     }
     final status = _doseTimingStatusAt(schedule, event.timestamp.toLocal());
     final timing = switch (status) {
-      'EARLY' => 'lebih awal',
-      'ON_TIME' => 'tepat waktu',
-      _ => 'terlambat',
+      'EARLY' => l10n.early,
+      'ON_TIME' => l10n.onTime,
+      _ => l10n.late,
     };
-    return 'Obat diminum $timing.';
+    return l10n.medicationTaken((timing).toString());
   }
 
   DoseEvent doseTakenFromRemoval(DoseEvent event) {
@@ -381,19 +398,21 @@ class AppProvider extends ChangeNotifier {
       unawaited(
         familyAlerts.report(
           kind: 'dose_status',
-          title: 'Status obat: sudah diminum',
-          details:
-              'Obat pada jadwal ${schedule.label} tercatat sudah diminum (${_timingLabel(status)}).',
+          title: l10n.medicationStatusTaken,
+          details: l10n.medicationScheduledAsWasRecordedAsTaken(
+            (schedule.label).toString(),
+            (_timingLabel(status)).toString(),
+          ),
         ),
       );
     }
   }
 
   String _timingLabel(String status) => switch (status) {
-    'EARLY' => 'lebih cepat',
-    'ON_TIME' => 'tepat waktu',
-    'LATE' => 'terlambat',
-    _ => 'tercatat',
+    'EARLY' => l10n.early2,
+    'ON_TIME' => l10n.onTime,
+    'LATE' => l10n.late,
+    _ => l10n.recorded,
   };
 
   String doseTimingStatus(MedicationSchedule schedule, {DateTime? now}) {
@@ -496,6 +515,19 @@ class AppProvider extends ChangeNotifier {
     separationMinutes = value;
     await _database.setSetting('separation_minutes', '$separationMinutes');
     notifyListeners();
+  }
+
+  Future<void> setLanguage(String value) async {
+    if ((value != 'en' && value != 'id') || value == _languageCode) return;
+    await _database.setSetting('language_code', value);
+    _languageCode = value;
+    notifications.languageCode = value;
+    notifyListeners();
+    // Replace pending reminders so they use the newly selected language.
+    for (final schedule in schedules) {
+      await _scheduleNotificationSafely(schedule);
+    }
+    await _scheduleMorningRefillSafely();
   }
 
   /// Hanya dipanggil setelah pengguna memilih perangkat dari hasil scan.

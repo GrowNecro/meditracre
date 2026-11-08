@@ -1,3 +1,5 @@
+import '../../l10n/localization.dart';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -58,7 +60,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   width: 32,
                   height: 32,
                   fit: BoxFit.contain,
-                  semanticLabel: 'Logo MEDITRACE',
+                  semanticLabel: context.l10n.meditraceLogo,
                 ),
                 const SizedBox(width: 6),
                 const Flexible(
@@ -109,31 +111,31 @@ class _HomeScreenState extends State<HomeScreen> {
     bottomNavigationBar: NavigationBar(
       selectedIndex: _index,
       onDestinationSelected: (value) => setState(() => _index = value),
-      destinations: const [
+      destinations: [
         NavigationDestination(
           icon: Icon(Icons.home_outlined),
           selectedIcon: Icon(Icons.home),
-          label: 'Home',
+          label: context.l10n.home,
         ),
         NavigationDestination(
           icon: Icon(Icons.medication_outlined),
           selectedIcon: Icon(Icons.medication),
-          label: 'Jadwal',
+          label: context.l10n.schedule,
         ),
         NavigationDestination(
           icon: Icon(Icons.history_outlined),
           selectedIcon: Icon(Icons.history),
-          label: 'Riwayat',
+          label: context.l10n.history,
         ),
         NavigationDestination(
           icon: Icon(Icons.developer_board_outlined),
           selectedIcon: Icon(Icons.developer_board),
-          label: 'Perangkat',
+          label: context.l10n.device,
         ),
         NavigationDestination(
           icon: Icon(Icons.person_outline),
           selectedIcon: Icon(Icons.person),
-          label: 'Profil',
+          label: context.l10n.profile,
         ),
       ],
     ),
@@ -208,9 +210,9 @@ class _Dashboard extends StatelessWidget {
           ? ble.refresh
           : () async {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
+                SnackBar(
                   content: Text(
-                    'Hubungkan MEDITRACE untuk memperbarui kondisi.',
+                    context.l10n.connectMeditraceToRefreshItsStatus,
                   ),
                 ),
               );
@@ -219,12 +221,12 @@ class _Dashboard extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
         children: [
           Text(
-            'Selamat datang!',
+            context.l10n.welcome,
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: 4),
           Text(
-            'Pantau jadwal obatmu hari ini.',
+            context.l10n.keepTrackOfYourMedicationScheduleToday,
             style: Theme.of(context).textTheme.bodyMedium,
           ),
           const SizedBox(height: 18),
@@ -250,20 +252,20 @@ class _Dashboard extends StatelessWidget {
                       Expanded(
                         child: Text(
                           connected
-                              ? 'MEDITRACE aktif'
-                              : 'MEDITRACE belum terhubung',
+                              ? context.l10n.meditraceActive
+                              : context.l10n.meditraceNotConnected,
                           style: Theme.of(context).textTheme.titleMedium,
                         ),
                       ),
                       if (connected)
                         IconButton(
-                          tooltip: 'Detail perangkat',
+                          tooltip: context.l10n.deviceDetails,
                           onPressed: () => _showDeviceInfo(context, ble),
                           icon: const Icon(Icons.info_outline),
                         )
                       else
                         IconButton(
-                          tooltip: 'Hubungkan perangkat',
+                          tooltip: context.l10n.connectDevice,
                           onPressed: ble.isBusy
                               ? null
                               : () => Navigator.push(
@@ -283,7 +285,9 @@ class _Dashboard extends StatelessWidget {
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
-                          ble.batteryEstimated ? 'Estimasi baterai' : 'Baterai',
+                          ble.batteryEstimated
+                              ? context.l10n.estimatedBattery
+                              : context.l10n.battery,
                         ),
                       ),
                       Text(
@@ -307,7 +311,9 @@ class _Dashboard extends StatelessWidget {
                   if (ble.batteryEstimated) ...[
                     const SizedBox(height: 6),
                     Text(
-                      'Perkiraan waktu pemakaian, bukan pengukuran tegangan.',
+                      context
+                          .l10n
+                          .estimatedFromUsageTimeRatherThanVoltageMeasurement,
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],
@@ -332,14 +338,14 @@ class _Dashboard extends StatelessWidget {
                   dense: true,
                   leading: Icon(Icons.warning_amber, color: scheme.error),
                   title: Text(
-                    'Sinyal lemah',
+                    context.l10n.weakSignal,
                     style: TextStyle(
                       color: scheme.onErrorContainer,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   subtitle: Text(
-                    'Pastikan MEDITRACE tetap dekat.',
+                    context.l10n.keepMeditraceNearby,
                     style: TextStyle(color: scheme.onErrorContainer),
                   ),
                 ),
@@ -355,7 +361,7 @@ class _Dashboard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Jadwal berikutnya',
+                    context.l10n.nextSchedule,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       color: scheme.onSecondaryContainer,
                       fontWeight: FontWeight.bold,
@@ -372,15 +378,17 @@ class _Dashboard extends StatelessWidget {
                   const SizedBox(height: 8),
                   Text(
                     next == null
-                        ? 'Belum ada jadwal obat'
-                        : 'Tunggu jadwal obat berikutnya',
+                        ? context.l10n.noMedicationSchedulesYet
+                        : context.l10n.waitForTheNextMedicationSchedule,
                     style: TextStyle(color: scheme.onSecondaryContainer),
                   ),
                   if (nextCompartmentEmpty)
                     Padding(
                       padding: const EdgeInsets.only(top: 10),
                       child: Text(
-                        'Obat belum tersedia di kompartemen ini.',
+                        context
+                            .l10n
+                            .medicationIsNotAvailableInThisCompartmentYet,
                         style: TextStyle(
                           color: scheme.error,
                           fontWeight: FontWeight.bold,
@@ -397,7 +405,7 @@ class _Dashboard extends StatelessWidget {
                           builder: (_) => const MedicationScreen(),
                         ),
                       ),
-                      child: const Text('Lihat jadwal obat'),
+                      child: Text(context.l10n.viewMedicationSchedule),
                     ),
                   ),
                   if (next != null) ...[
@@ -409,7 +417,7 @@ class _Dashboard extends StatelessWidget {
                             ? () => app.setDoseConfirmed(next, true)
                             : null,
                         icon: const Icon(Icons.check_circle_outline),
-                        label: const Text('Sudah minum'),
+                        label: Text(context.l10n.taken),
                       ),
                     ),
                   ],
@@ -422,7 +430,7 @@ class _Dashboard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  'Kotak obat',
+                  context.l10n.medicationBox,
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
               ),
@@ -431,7 +439,7 @@ class _Dashboard extends StatelessWidget {
                   context,
                   MaterialPageRoute<void>(builder: (_) => const DeviceScreen()),
                 ),
-                child: const Text('Lihat semua'),
+                child: Text(context.l10n.viewAll),
               ),
             ],
           ),
@@ -458,19 +466,23 @@ class _Dashboard extends StatelessWidget {
       showDialog<void>(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('MEDITRACE terhubung'),
+          title: Text(context.l10n.meditraceConnected),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(ble.batteryEstimated ? 'Estimasi baterai' : 'Baterai'),
+              Text(
+                ble.batteryEstimated
+                    ? context.l10n.estimatedBattery
+                    : context.l10n.battery,
+              ),
               Text('${ble.battery ?? ble.deviceInfo?.battery ?? '--'}%'),
             ],
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Tutup'),
+              child: Text(context.l10n.close),
             ),
           ],
         ),
@@ -499,27 +511,30 @@ class _MedicationBoxSummary extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            Wrap(
+              spacing: 12,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                Expanded(
-                  child: Text(
-                    'Status kompartemen',
-                    style: Theme.of(context).textTheme.titleSmall,
-                  ),
+                Text(
+                  context.l10n.compartmentStatus,
+                  style: Theme.of(context).textTheme.titleSmall,
                 ),
                 Chip(
                   label: Text(
                     connected && filledCount == compartmentCount
-                        ? 'Lengkap'
-                        : 'Perlu diisi',
+                        ? context.l10n.complete
+                        : context.l10n.needsRefill,
                   ),
                 ),
               ],
             ),
             Text(
               connected
-                  ? '$filledCount dari $compartmentCount kompartemen terisi'
-                  : 'Hubungkan MEDITRACE untuk melihat isi',
+                  ? context.l10n.ofCompartmentsFilled(
+                      (filledCount).toString(),
+                      (compartmentCount).toString(),
+                    )
+                  : context.l10n.connectMeditraceToSeeContents,
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 12),
@@ -562,8 +577,8 @@ class _MedicationBoxSummary extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               connected && filledCount == compartmentCount
-                  ? 'Semua kompartemen sudah terisi.'
-                  : 'Isi obat sebelum jadwal berikutnya.',
+                  ? context.l10n.allCompartmentsAreFilled
+                  : context.l10n.refillMedicationBeforeTheNextSchedule,
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ],

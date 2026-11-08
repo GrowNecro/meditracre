@@ -1,3 +1,5 @@
+import '../l10n/localization.dart';
+
 import 'package:url_launcher/url_launcher.dart';
 
 abstract final class AppUpdateService {
@@ -9,24 +11,26 @@ abstract final class AppUpdateService {
     'https://github.com/GrowNecro/meditracre/releases/latest',
   );
 
-  static Future<void> downloadLatestApk() async {
+  static Future<void> downloadLatestApk({String languageCode = 'en'}) async {
     final opened = await launchUrl(
       latestApkUri,
       mode: LaunchMode.externalApplication,
     );
     if (!opened) {
-      throw const AppUpdateException('APK terbaru tidak dapat diunduh.');
+      throw AppUpdateException(
+        stringsForLanguage(languageCode).apkDownloadFailed,
+      );
     }
   }
 
-  static Future<void> openLatestRelease() async {
+  static Future<void> openLatestRelease({String languageCode = 'en'}) async {
     final opened = await launchUrl(
       latestReleaseUri,
       mode: LaunchMode.externalApplication,
     );
     if (!opened) {
-      throw const AppUpdateException(
-        'Halaman update aplikasi tidak dapat dibuka.',
+      throw AppUpdateException(
+        stringsForLanguage(languageCode).appUpdatePageFailed,
       );
     }
   }

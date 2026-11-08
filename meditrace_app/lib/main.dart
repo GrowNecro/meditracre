@@ -1,3 +1,5 @@
+import 'l10n/localization.dart';
+
 import 'dart:async';
 
 import 'package:app_links/app_links.dart';
@@ -19,7 +21,7 @@ void main() {
   runApp(const MeditraceApp(showStartupSplash: true));
 }
 
-Future<void> _firebaseInitialization = Future<void>.value();
+Future<void>? _firebaseInitialization;
 
 Future<void> _initializeFirebase() async {
   if (Firebase.apps.isNotEmpty) return;
@@ -51,6 +53,7 @@ class _MeditraceAppState extends State<MeditraceApp>
   late final AppProvider _app;
   late final BleProvider _ble;
   final _appLinks = AppLinks();
+  final _navigatorKey = GlobalKey<NavigatorState>();
   StreamSubscription<Uri>? _linkSubscription;
   String? _inviteCode;
   int _homeTab = 0;
@@ -104,7 +107,8 @@ class _MeditraceAppState extends State<MeditraceApp>
   }
 
   Future<void> _start() async {
-    await _firebaseInitialization;
+    final firebaseInitialization = _firebaseInitialization;
+    if (firebaseInitialization != null) await firebaseInitialization;
     await _app.initialize();
     if (mounted) {
       setState(() => _isReady = true);
@@ -118,12 +122,14 @@ class _MeditraceAppState extends State<MeditraceApp>
   }
 
   Future<void> _showEntryChoice() async {
-    final api = FamilyApi();
+    final api = FamilyApi(languageCode: () => _app.languageCode);
     if (_entryPromptShown || !mounted || await api.hasSession) return;
     if (!mounted) return;
+    final navigatorContext = _navigatorKey.currentContext;
+    if (navigatorContext == null || !navigatorContext.mounted) return;
     _entryPromptShown = true;
     await showDialog<void>(
-      context: context,
+      context: navigatorContext,
       barrierDismissible: false,
       builder: (dialogContext) => _EntryChoiceDialog(
         onLogin: () async {
@@ -157,67 +163,74 @@ class _MeditraceAppState extends State<MeditraceApp>
       ChangeNotifierProvider<AppProvider>.value(value: _app),
       ChangeNotifierProvider<BleProvider>.value(value: _ble),
     ],
-    child: MaterialApp(
-      title: 'MEDITRACE',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF16B8C0),
-          brightness: Brightness.light,
+    child: ListenableBuilder(
+      listenable: _app,
+      builder: (context, _) => MaterialApp(
+        navigatorKey: _navigatorKey,
+        locale: Locale(_app.languageCode),
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        title: 'MEDITRACE',
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: const Color(0xFF16B8C0),
+            brightness: Brightness.light,
+          ),
+          useMaterial3: true,
+          scaffoldBackgroundColor: const Color(0xFFF2FFFE),
+          appBarTheme: const AppBarTheme(
+            backgroundColor: Color(0xFFE7FFFD),
+            foregroundColor: Color(0xFF075E63),
+            surfaceTintColor: Colors.transparent,
+          ),
+          navigationBarTheme: const NavigationBarThemeData(
+            backgroundColor: Color(0xFFE7FFFD),
+            indicatorColor: Color(0xFF9DEBE8),
+            surfaceTintColor: Colors.transparent,
+          ),
+          cardTheme: const CardThemeData(surfaceTintColor: Color(0xFFB9F4F0)),
+          pageTransitionsTheme: const PageTransitionsTheme(
+            builders: {
+              TargetPlatform.android: _FadeSlidePageTransitionsBuilder(),
+              TargetPlatform.iOS: _FadeSlidePageTransitionsBuilder(),
+              TargetPlatform.windows: _FadeSlidePageTransitionsBuilder(),
+              TargetPlatform.macOS: _FadeSlidePageTransitionsBuilder(),
+              TargetPlatform.linux: _FadeSlidePageTransitionsBuilder(),
+            },
+          ),
         ),
-        useMaterial3: true,
-        scaffoldBackgroundColor: const Color(0xFFF2FFFE),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFFE7FFFD),
-          foregroundColor: Color(0xFF075E63),
-          surfaceTintColor: Colors.transparent,
+        darkTheme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: const Color(0xFF16B8C0),
+            brightness: Brightness.dark,
+          ),
+          useMaterial3: true,
+          scaffoldBackgroundColor: const Color(0xFF071F20),
+          appBarTheme: const AppBarTheme(
+            backgroundColor: Color(0xFF0B2D2E),
+            surfaceTintColor: Colors.transparent,
+          ),
+          navigationBarTheme: const NavigationBarThemeData(
+            backgroundColor: Color(0xFF0B2D2E),
+            surfaceTintColor: Colors.transparent,
+          ),
+          cardTheme: const CardThemeData(surfaceTintColor: Color(0xFF164849)),
         ),
-        navigationBarTheme: const NavigationBarThemeData(
-          backgroundColor: Color(0xFFE7FFFD),
-          indicatorColor: Color(0xFF9DEBE8),
-          surfaceTintColor: Colors.transparent,
+        themeMode: ThemeMode.system,
+        home: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 300),
+          switchInCurve: Curves.easeOut,
+          switchOutCurve: Curves.easeIn,
+          child: !widget.showStartupSplash || _isReady
+              ? HomeScreen(
+                  key: const ValueKey('home'),
+                  selectedIndex: _homeTab,
+                  inviteCode: _inviteCode,
+                  onInviteConsumed: () => setState(() => _inviteCode = null),
+                )
+              : const _SplashScreen(key: ValueKey('splash')),
         ),
-        cardTheme: const CardThemeData(surfaceTintColor: Color(0xFFB9F4F0)),
-        pageTransitionsTheme: const PageTransitionsTheme(
-          builders: {
-            TargetPlatform.android: _FadeSlidePageTransitionsBuilder(),
-            TargetPlatform.iOS: _FadeSlidePageTransitionsBuilder(),
-            TargetPlatform.windows: _FadeSlidePageTransitionsBuilder(),
-            TargetPlatform.macOS: _FadeSlidePageTransitionsBuilder(),
-            TargetPlatform.linux: _FadeSlidePageTransitionsBuilder(),
-          },
-        ),
-      ),
-      darkTheme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF16B8C0),
-          brightness: Brightness.dark,
-        ),
-        useMaterial3: true,
-        scaffoldBackgroundColor: const Color(0xFF071F20),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF0B2D2E),
-          surfaceTintColor: Colors.transparent,
-        ),
-        navigationBarTheme: const NavigationBarThemeData(
-          backgroundColor: Color(0xFF0B2D2E),
-          surfaceTintColor: Colors.transparent,
-        ),
-        cardTheme: const CardThemeData(surfaceTintColor: Color(0xFF164849)),
-      ),
-      themeMode: ThemeMode.system,
-      home: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 300),
-        switchInCurve: Curves.easeOut,
-        switchOutCurve: Curves.easeIn,
-        child: !widget.showStartupSplash || _isReady
-            ? HomeScreen(
-                key: const ValueKey('home'),
-                selectedIndex: _homeTab,
-                inviteCode: _inviteCode,
-                onInviteConsumed: () => setState(() => _inviteCode = null),
-              )
-            : const _SplashScreen(key: ValueKey('splash')),
       ),
     ),
   );
@@ -284,15 +297,12 @@ class _EntryChoiceDialogState extends State<_EntryChoiceDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Selamat datang di MEDITRACE'),
-    content: const Text(
-      'Masuk untuk menggunakan fitur keluarga dan sinkronisasi akun, '
-      'atau lanjut sebagai tamu untuk memakai fitur lokal.',
-    ),
+    title: Text(context.l10n.welcomeToMeditrace),
+    content: Text(context.l10n.signInToUseFamilyFeaturesAndAccount),
     actions: [
       TextButton(
         onPressed: _loading ? null : widget.onGuest,
-        child: const Text('Lanjut sebagai tamu'),
+        child: Text(context.l10n.continueAsGuest),
       ),
       FilledButton.icon(
         onPressed: _loading ? null : _login,
@@ -303,7 +313,7 @@ class _EntryChoiceDialogState extends State<_EntryChoiceDialog> {
                 child: CircularProgressIndicator(strokeWidth: 2),
               )
             : const Icon(Icons.login),
-        label: const Text('Login'),
+        label: Text(context.l10n.signIn),
       ),
     ],
   );

@@ -1,3 +1,5 @@
+import '../l10n/localization.dart';
+
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
@@ -5,6 +7,8 @@ import 'package:timezone/timezone.dart' as tz;
 import '../models/medication_schedule.dart';
 
 class NotificationService {
+  String languageCode = 'en';
+  AppLocalizations get l10n => stringsForLanguage(languageCode);
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
 
@@ -21,10 +25,10 @@ class NotificationService {
           AndroidFlutterLocalNotificationsPlugin
         >()
         ?.createNotificationChannel(
-          const AndroidNotificationChannel(
+          AndroidNotificationChannel(
             'family_alerts',
-            'Peringatan keluarga',
-            description: 'Peringatan dari caregiver dan anggota keluarga',
+            l10n.familyAlert,
+            description: l10n.alertsFromCaregiversAndFamilyMembers,
             importance: Importance.high,
           ),
         );
@@ -53,16 +57,23 @@ class NotificationService {
     if (!when.isAfter(now)) when = when.add(const Duration(days: 1));
     await _plugin.zonedSchedule(
       id: 1000 + schedule.id,
-      title: 'Waktunya minum obat',
+      title: l10n.timeToTakeMedication2,
       body: schedule.compartmentNumber == null
-          ? '${schedule.label} • ${schedule.timeText}. Buka MEDITRACE sekarang.'
-          : '${schedule.label} • ${schedule.timeText}. Periksa ruang ${schedule.compartmentNumber}.',
+          ? l10n.openMeditraceNow(
+              (schedule.label).toString(),
+              (schedule.timeText).toString(),
+            )
+          : l10n.checkCompartment(
+              (schedule.label).toString(),
+              (schedule.timeText).toString(),
+              (schedule.compartmentNumber).toString(),
+            ),
       scheduledDate: when,
-      notificationDetails: const NotificationDetails(
+      notificationDetails: NotificationDetails(
         android: AndroidNotificationDetails(
           'medication_reminders',
-          'Pengingat obat',
-          channelDescription: 'Pengingat jadwal obat harian MEDITRACE',
+          l10n.medicationReminder,
+          channelDescription: l10n.dailyMeditraceMedicationReminders,
           importance: Importance.high,
           priority: Priority.high,
         ),
@@ -77,14 +88,14 @@ class NotificationService {
     await _plugin.cancel(id: 2001);
     await _plugin.zonedSchedule(
       id: 2001,
-      title: 'MEDITRACE tidak terdeteksi',
-      body: 'Pastikan kotak obat tidak tertinggal.',
+      title: l10n.meditraceNotDetected,
+      body: l10n.makeSureTheMedicationBoxHasNotBeen,
       scheduledDate: tz.TZDateTime.now(tz.local).add(delay),
-      notificationDetails: const NotificationDetails(
+      notificationDetails: NotificationDetails(
         android: AndroidNotificationDetails(
           'device_alerts',
-          'Peringatan perangkat',
-          channelDescription: 'Peringatan koneksi dan isi ulang MEDITRACE',
+          l10n.deviceAlerts,
+          channelDescription: l10n.meditraceConnectionAndRefillAlerts,
           importance: Importance.high,
           priority: Priority.high,
         ),
@@ -103,13 +114,13 @@ class NotificationService {
     if (!when.isAfter(now)) when = when.add(const Duration(days: 1));
     await _plugin.zonedSchedule(
       id: 2004,
-      title: 'Periksa isi MEDITRACE',
-      body: 'Pagi ini, pastikan kompartemen obat telah terisi untuk jadwal berikutnya.',
+      title: l10n.checkMeditraceContents,
+      body: l10n.thisMorningMakeSureTheMedicationCompartmentsAre,
       scheduledDate: when,
-      notificationDetails: const NotificationDetails(
+      notificationDetails: NotificationDetails(
         android: AndroidNotificationDetails(
           'device_alerts',
-          'Peringatan perangkat',
+          l10n.deviceAlerts,
           importance: Importance.defaultImportance,
           priority: Priority.defaultPriority,
         ),
@@ -122,12 +133,12 @@ class NotificationService {
 
   Future<void> showWeakSignalAlert() => _plugin.show(
     id: 2003,
-    title: 'MEDITRACE mulai jauh',
-    body: 'Sinyal MEDITRACE lemah. Pastikan kotak obat masih bersama Anda.',
-    notificationDetails: const NotificationDetails(
+    title: l10n.meditraceIsMovingOutOfRange,
+    body: l10n.meditraceSignalIsWeakMakeSureTheMedication,
+    notificationDetails: NotificationDetails(
       android: AndroidNotificationDetails(
         'device_alerts',
-        'Peringatan perangkat',
+        l10n.deviceAlerts,
         importance: Importance.high,
         priority: Priority.high,
       ),
@@ -136,12 +147,12 @@ class NotificationService {
 
   Future<void> showRefillAlert() => _plugin.show(
     id: 2002,
-    title: 'MEDITRACE perlu diisi',
-    body: 'Satu atau lebih ruang obat terdeteksi kosong.',
-    notificationDetails: const NotificationDetails(
+    title: l10n.meditraceNeedsARefill,
+    body: l10n.oneOrMoreMedicationCompartmentsAreEmpty,
+    notificationDetails: NotificationDetails(
       android: AndroidNotificationDetails(
         'device_alerts',
-        'Peringatan perangkat',
+        l10n.deviceAlerts,
         importance: Importance.high,
         priority: Priority.high,
       ),
@@ -150,13 +161,13 @@ class NotificationService {
 
   Future<void> showScheduledDoseAlert(String body) => _plugin.show(
     id: DateTime.now().millisecondsSinceEpoch.remainder(1000000) + 4000,
-    title: 'Alarm MEDITRACE',
+    title: l10n.meditraceAlarm,
     body: body,
-    notificationDetails: const NotificationDetails(
+    notificationDetails: NotificationDetails(
       android: AndroidNotificationDetails(
         'medication_reminders',
-        'Pengingat obat',
-        channelDescription: 'Pengingat jadwal obat harian MEDITRACE',
+        l10n.medicationReminder,
+        channelDescription: l10n.dailyMeditraceMedicationReminders,
         importance: Importance.high,
         priority: Priority.high,
       ),
@@ -165,13 +176,13 @@ class NotificationService {
 
   Future<void> showDoseTakenAlert(String body) => _plugin.show(
     id: DateTime.now().millisecondsSinceEpoch.remainder(1000000) + 4000,
-    title: 'Obat diminum',
+    title: l10n.medicationTaken3,
     body: body,
-    notificationDetails: const NotificationDetails(
+    notificationDetails: NotificationDetails(
       android: AndroidNotificationDetails(
         'medication_reminders',
-        'Pengingat obat',
-        channelDescription: 'Status minum obat MEDITRACE',
+        l10n.medicationReminder,
+        channelDescription: l10n.meditraceMedicationStatus,
         importance: Importance.high,
         priority: Priority.high,
       ),
@@ -180,13 +191,13 @@ class NotificationService {
 
   Future<void> showFamilyAlert(String title) => _plugin.show(
     id: DateTime.now().millisecondsSinceEpoch.remainder(1000000) + 3000,
-    title: 'Peringatan keluarga MEDITRACE',
+    title: l10n.meditraceFamilyAlert,
     body: title,
-    notificationDetails: const NotificationDetails(
+    notificationDetails: NotificationDetails(
       android: AndroidNotificationDetails(
         'family_alerts',
-        'Peringatan keluarga',
-        channelDescription: 'Peringatan dari anggota keluarga MEDITRACE',
+        l10n.familyAlert,
+        channelDescription: l10n.alertsFromMeditraceFamilyMembers,
         importance: Importance.high,
         priority: Priority.high,
       ),

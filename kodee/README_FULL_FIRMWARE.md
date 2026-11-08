@@ -1,121 +1,112 @@
 # Firmware MEDITRACE ESP32-C3
 
-Firmware menyediakan BLE MEDITRACE, sinkronisasi waktu dari ponsel, buzzer,
-jadwal obat, penyimpanan konfigurasi/event offline, dan OTA melalui BLE.
+Firmware **0.9.7** untuk kotak obat **5 kompartemen**, dengan BLE, sensor isi/pintu,
+buzzer, penyimpanan konfigurasi/event offline, estimasi baterai, dan OTA BLE.
+Konfigurasi sumber: [`config.h`](meditrace_full_esp32_c3/config.h).
 
-## Build ESP32-C3
+## Hardware dan pin
 
-Buka `meditrace_full_esp32_c3/meditrace_full_esp32_c3.ino`, lalu pilih
-**ESP32C3 Dev Module**.
+| Fungsi | Pin / sambungan |
+| --- | --- |
+| Buzzer | GPIO3 melalui driver transistor |
+| SDA / SCL PCF8575 | GPIO5 / GPIO6 |
+| INT PCF8575 | GPIO4 disiapkan; belum dipakai untuk interrupt |
+| Sakelar daya pemancar IR | GPIO7, EN aktif HIGH |
+| LED board | GPIO8 aktif LOW; `STATUS_LED_ENABLED = false` |
+| GPIO0 / ADC baterai | Tidak dipakai oleh mode estimasi firmware 0.9.7 |
+| RTC DS3231 | Tidak digunakan |
 
-| Fungsi | GPIO |
-|---|---:|
-| LED | 8 |
-| Buzzer | 3 |
-| SDA PCF8575 | 5 |
-| SCL PCF8575 | 6 |
-| INT PCF8575 (disiapkan, belum dipakai firmware) | 4 |
-| EN load switch lima pemancar IR (aktif HIGH) | 7 |
+PCF8575 dipindai pada alamat `0x20–0x27`, dengan prioritas `0x21`.
+VCC dan pull-up I²C memakai 3,3 V; semua GND beban bersama dengan ESP32-C3.
+Output sensor ke input PCF8575 harus sesuai rel logika 3,3 V.
+GPIO7 mengendalikan sakelar daya, bukan menyuplai kelima pemancar langsung.
 
-Nama BLE: `MEDITRACE-C3-XXXX`.
-
-Dengan PlatformIO:
-
-```powershell
-cd D:\Work\flutter\medbox\kodee\meditrace_full_esp32_c3
-pio run
-pio run --target upload
-```
-
-Binary hasil build berada di `.pio/build/esp32-c3/firmware.bin`.
-Untuk update online, unggah binary tersebut ke GitHub Release dengan nama asset
-`meditrace-esp32-c3.bin`. Aplikasi mengambil asset dari release terbaru melalui
-URL:
-
-`https://github.com/GrowNecro/meditracre/releases/latest/download/meditrace-esp32-c3.bin`
-
-## Sinkronisasi waktu dan update BLE
-
-ESP32-C3 tidak memiliki RTC hardware. Setelah setiap boot/reset, aplikasi harus
-mengirim `SYNC_TIME:<unix-seconds>` sebelum timer jadwal perangkat diaktifkan.
-Aplikasi melakukan sinkronisasi otomatis saat BLE tersambung.
-
-Update firmware dapat dilakukan dari halaman **Perangkat** aplikasi dengan file
-`.bin` hasil build PlatformIO. Transfer memakai characteristic OTA BLE, ukuran
-dan CRC32 diverifikasi di perangkat, lalu ESP32 restart hanya setelah transfer
-valid. Jangan memutus koneksi atau mematikan perangkat selama proses update.
-
-Hubungkan PCF8575 dengan **VCC 3,3 V** dan GND bersama ESP32-C3. A0, A1,
-Firmware memindai alamat PCF8575 `0x20–0x27` dan memprioritaskan `0x21`, sehingga
-perubahan jumper A0–A2 tidak memerlukan perubahan kode. Pasang pull-up I²C ke
-**3,3 V**, jangan ke 5 V. Gunakan
-**PCF8575**, bukan PCF8575C (varian C memerlukan tegangan suplai lebih tinggi).
-
-| Kanal kotak | Input IR digital | Reed switch |
-|---|---|---|
+| Ruang | Penerima IR break-beam | Limit switch pintu NC |
+| --- | --- | --- |
 | 1 | P00 | P10 |
 | 2 | P01 | P11 |
 | 3 | P02 | P12 |
 | 4 | P03 | P13 |
 | 5 | P04 | P14 |
 
-P05 dan P15 tidak dipakai. Keluaran digital **penerima** break-beam masuk
-P00–P04; VCC kelima penerima tetap pada rel 3,3 V. Daya kelima **pemancar**
-boleh lewat load switch aktif-HIGH yang dikendalikan GPIO7. Cocokkan tegangan,
-arus, dan polaritas OUT dengan datasheet modul sensor yang dipakai.
+P05/P15 tidak dipakai. Pada pemasangan saat ini, IR **HIGH** berarti beam
+terhalang/obat ada. COM limit switch ke P10–P14 dan NC ke GND: pintu tertutup
+menekan switch sehingga kontak NC terbuka dan input terbaca **HIGH**; **LOW**
+berarti pintu terbuka. Polaritas diatur oleh `IR_OCCUPIED_LEVEL` dan
+`LIMIT_SWITCH_CLOSED_LEVEL`.
 
-Sisi lain setiap reed ke GND. Kode menganggap reed tertutup = LOW dan output
-IR mendeteksi obat = LOW. Jika modul IR Anda bekerja sebaliknya, ubah
-`REED_CLOSED_LEVEL` atau `IR_OCCUPIED_LEVEL` di `meditrace_full_esp32_c3/config.h`.
-Output IR ke PCF8575 **tidak boleh melebihi 3,3 V**; modul IR 5 V perlu
-level shifter atau output open-collector dengan pull-up ke 3,3 V. Port
-PCF8575 mempunyai pull-up internal yang lemah; untuk kabel reed panjang,
-pertimbangkan pull-up eksternal ke 3,3 V dan penyaringan gangguan.
+Input pintu dipoll setiap 20 ms dengan debounce 80 ms. IR diperiksa saat boot,
+`GET_SENSOR`, dan perubahan pintu. Selama pintu terbuka, IR dibaca tiap
+2 detik pada menit pertama, lalu tiap 5 detik hingga batas 2 menit; penutupan
+pintu memicu pemeriksaan terakhir. Kegagalan sensor menghasilkan
+`sensor_valid:false`, bukan status semua ruang kosong.
 
-GPIO7 hanya mengendalikan pin EN **load switch high-side aktif HIGH** yang
-menyuplai VCC kelima pemancar IR. Jangan memberi daya pemancar langsung dari
-GPIO7. Jika belum ada load switch, pemancar dapat diberi daya terus untuk uji
-awal, tetapi konsumsi baterai meningkat dan kendali GPIO7 tidak berfungsi.
-Periksa kebutuhan arus modul IR dan kemampuan load switch sebelum merakit.
+## BLE, waktu, dan jadwal
 
-IR dinyalakan sebentar saat boot dan perintah `GET_SENSOR`. Saat pintu dibuka,
-IR memantau setiap 2 detik selama maksimal 2 menit; saat pintu ditutup,
-dilakukan satu pembacaan terakhir. Bila pembacaan I²C/IR gagal, firmware
-mengirim
-`sensor_valid:false` dengan daftar sensor kosong, bukan menganggap kotak
-kosong. Reed dipantau setiap 20 ms ketika ESP32-C3 aktif, dengan debounce 80
-ms sehingga perubahan stabil terdeteksi sekitar 80–100 ms. GPIO4/INT belum
-digunakan untuk interrupt. BLE memakai daya TX 0 dBm dan advertising 400–1000
-ms untuk mengurangi konsumsi. IR memantau tiap 2 detik pada 60 detik pertama,
-lalu tiap 5 detik sampai batas 2 menit; firmware ini **belum menerapkan deep sleep
-atau BLE berkala**.
+Nama advertising: **`MEDITRACE-C3-XXXX`**. UUID service/characteristic ada di
+`config.h` dan [protokol BLE](../docs/ble-protocol.md).
 
-Saat ponsel tersambung, firmware meminta connection interval 100–200 ms dengan
-slave latency 4 dan supervision timeout 6 detik. Ponsel dapat menegosiasikan
-nilai lain, tetapi konfigurasi ini mengurangi event radio saat koneksi idle
-tanpa memutus koneksi BLE.
+Advertising memakai interval **100–150 ms** dan TX **0 dBm**. Saat tersambung,
+firmware meminta connection interval 100–200 ms, slave latency 4, supervision
+timeout 6 detik; ponsel dapat menegosiasikan nilai lain. Belum ada deep sleep
+atau BLE berkala.
 
-Untuk baterai 1500 mAh, ukur arus pada sisi baterai setelah optimasi. Runtime
-10 jam berarti rata-rata sekitar 150 mA dari baterai; angka ini sering lebih
-besar daripada konsumsi idle ESP32-C3 dan mengindikasikan pemancar IR, buzzer,
-peripheral 5 V, atau step-up sebagai beban utama. Load switch GPIO7 wajib
-benar-benar memutus VCC pemancar IR saat LOW; mengubah GPIO saja tidak cukup
-jika pemancar masih terhubung langsung ke rel 5 V.
+Waktu disinkronkan dari HP melalui `SYNC_TIME:<unix-seconds>` setelah koneksi.
+Firmware tidak menjalankan jadwal obat secara mandiri. Aplikasi mengelola
+jadwal, notifikasi, dan pemicu buzzer selama aktif serta tersambung.
+Event tanpa waktu tersinkron mendapat waktu penerimaan dari aplikasi.
 
-## Pemantauan baterai
+## Estimasi baterai
 
-ESP32-C3 membaca baterai Li-ion 1 sel melalui pembagi tegangan 100 kΩ + 100 kΩ
-ke GPIO0. Hubungkan resistor atas ke **B+ TP4056**, titik tengah ke GPIO0, dan
-resistor bawah ke GND. Kapasitor polar 100 nF dipasang dengan kaki positif di
-titik tengah dan kaki negatif ke GND. B− TP4056, GND ESP32-C3, dan GND converter
-harus tersambung bersama. Nilai baterai dikirim melalui field `battery` dan
-`battery_voltage` pada status BLE.
+Baterai acuan berlabel **3,7 V 1500 mAh**. Firmware memperkirakan pemakaian
+berdasarkan waktu aktif dan arus rata-rata **150 mA**: sekitar **10 jam** dari
+penuh atau turun **1% tiap 6 menit**. Ini bukan pengukuran tegangan GPIO0 atau
+bukti runtime nyata.
 
-## Library Arduino IDE
+INFO/STATUS menyertakan `battery`, `battery_estimated:true`, dan
+`battery_voltage:null`. Status berkala dikirim setiap 30 detik. Pemasangan
+pertama mengasumsikan 100%; pengisian tidak terdeteksi otomatis. Setelah dicas
+penuh, pilih **Perangkat → Detail perangkat → Tandai baterai penuh** di APK.
+Perintah `BATTERY_FULL` mereset estimasi setelah konfirmasi pengguna.
 
-Install melalui Library Manager:
+Pemakaian disimpan di NVS setiap 5 menit dan sebelum restart normal/OTA.
+Restart tidak otomatis mereset persentase. Mati mendadak dapat kehilangan
+catatan sekitar 5 menit. Waktu mati, pengosongan alami, penuaan sel, dan beban
+sebenarnya tidak diperhitungkan. Konstanta kapasitas/arus ada di `config.h`.
 
-- **NimBLE-Arduino by h2zero**
-- **RTClib by Adafruit**
+## Build dan upload
 
-Serial Monitor menggunakan **115200 baud**.
+Dari root repository:
+
+```powershell
+cd kodee/meditrace_full_esp32_c3
+pio run
+pio run --target upload
+```
+
+Binary aplikasi berada di `.pio/build/esp32-c3/firmware.bin`. Upload pertama
+menggunakan USB/PlatformIO; binary ini juga menjadi payload OTA.
+Project memakai board `esp32-c3-devkitm-1` dan framework Arduino.
+Dependensi `platformio.ini`: NimBLE-Arduino dan RTClib; DS3231 tetap tidak
+dipakai oleh implementasi saat ini.
+
+Untuk Arduino IDE, buka `meditrace_full_esp32_c3.ino`, pilih **ESP32C3 Dev Module**,
+dan pasang library sesuai project. Serial Monitor: **115200 baud**.
+Perintah diagnostik mencakup `HELP`, `DIAG`, `I2C`, `SENSOR`, `TEST`.
+
+## OTA dan GitHub Release
+
+Pilih **Perangkat → Update firmware terbaru** atau **Pilih file .bin lokal**
+di aplikasi. Transfer dimulai setelah konfirmasi. Perangkat memverifikasi
+ukuran/CRC32, lalu restart setelah berhasil. BLE putus sementara dan aplikasi
+mencoba reconnect saat perangkat tersedia lagi. Jaga daya/koneksi selama transfer.
+
+Asset release harus bernama **`meditrace-esp32-c3.bin`**. Workflow
+[release.yml](../.github/workflows/release.yml) membangun firmware dan APK saat
+tag `v*` dipush. Firmware diunduh dari:
+
+`https://github.com/GrowNecro/meditracre/releases/latest/download/meditrace-esp32-c3.bin`
+
+Belum ada pemeriksaan versi atau pemasangan otomatis. Reconnect diatur APK:
+jeda awal 0,5 detik dan retry 2 detik, ditambah durasi scan/koneksi.
+Pemutusan manual menonaktifkan reconnect sampai pairing manual lagi.

@@ -1,3 +1,5 @@
+import '../../l10n/localization.dart';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -25,10 +27,12 @@ class _ScanScreenState extends State<ScanScreen> {
     final ble = context.watch<BleProvider>();
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Cari MEDITRACE'),
+        title: Text(context.l10n.findMeditrace),
         actions: [
           IconButton(
-            tooltip: ble.isScanning ? 'Hentikan scan' : 'Scan ulang',
+            tooltip: ble.isScanning
+                ? context.l10n.stopScanning
+                : context.l10n.scanAgain,
             onPressed: ble.isBusy
                 ? null
                 : ble.isScanning
@@ -47,17 +51,17 @@ class _ScanScreenState extends State<ScanScreen> {
               actions: [
                 TextButton(
                   onPressed: ble.clearError,
-                  child: const Text('Tutup'),
+                  child: Text(context.l10n.close),
                 ),
               ],
             ),
           Expanded(
             child: ble.devices.isEmpty
-                ? const Center(
+                ? Center(
                     child: Padding(
                       padding: EdgeInsets.all(24),
                       child: Text(
-                        'Belum ada MEDITRACE ditemukan.\nPastikan kotak obat menyala, Bluetooth aktif, dan posisinya dekat dengan HP.',
+                        context.l10n.noMeditraceFoundYetMakeSureTheMedication,
                         textAlign: TextAlign.center,
                       ),
                     ),
@@ -74,7 +78,7 @@ class _ScanScreenState extends State<ScanScreen> {
                             child: Icon(Icons.medication),
                           ),
                           title: Text(device.name),
-                          subtitle: const Text('Ketuk untuk menghubungkan'),
+                          subtitle: Text(context.l10n.tapToConnect),
                           trailing: const Icon(Icons.chevron_right),
                           enabled: !ble.isBusy,
                           onTap: () async {

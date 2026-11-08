@@ -1,3 +1,5 @@
+import '../l10n/localization.dart';
+
 abstract final class BatteryEstimate {
   static const capacityMah = 1500.0;
   static const averageCurrentMa = 150.0;
@@ -9,11 +11,12 @@ abstract final class BatteryEstimate {
     return Duration(minutes: (hours * 60).round());
   }
 
-  static String label(int? percent) {
+  static String label(int? percent, {String languageCode = 'en'}) {
+    final l10n = stringsForLanguage(languageCode);
     final duration = runtime(percent);
-    if (duration == null) return 'Belum tersedia';
+    if (duration == null) return l10n.notAvailableYet;
     final hours = duration.inHours;
     final minutes = duration.inMinutes.remainder(60);
-    return hours == 0 ? '< 1 jam' : '$hours jam $minutes menit';
+    return hours == 0 ? l10n.hr : l10n.hrMin('$hours', '$minutes');
   }
 }

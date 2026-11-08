@@ -1,3 +1,5 @@
+import '../l10n/localization.dart';
+
 import 'package:flutter/material.dart';
 
 import '../models/device_info.dart';
@@ -40,18 +42,18 @@ class CompartmentStatusSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          compact ? 'Obat di kotak' : 'Status kompartemen',
+          compact
+              ? context.l10n.medicationInTheBox
+              : context.l10n.compartmentStatus,
           style: Theme.of(context).textTheme.titleMedium,
         ),
         const SizedBox(height: 8),
         if (!connected)
-          const Text('Hubungkan MEDITRACE untuk melihat kondisi tiap ruang.')
+          Text(context.l10n.connectMeditraceToSeeEachCompartmentSStatus)
         else if (ble.sensorValid == false)
-          const Text(
-            'Sensor belum berhasil dibaca. Periksa PCF8575 dan coba Baca sensor lagi.',
-          )
+          Text(context.l10n.theSensorsCouldNotBeReadCheckThe)
         else if (ble.lastSensorUpdate == null)
-          const Text('Mengambil status sensor dari MEDITRACE...'),
+          Text(context.l10n.gettingSensorStatusFromMeditrace),
         if (compact)
           LayoutBuilder(
             builder: (context, constraints) {
@@ -95,10 +97,10 @@ class _CompartmentStatus extends StatelessWidget {
   Widget build(BuildContext context) {
     if (compact) {
       final status = occupied == null
-          ? 'Belum terbaca'
+          ? context.l10n.notReadYet
           : occupied!
-          ? 'Obat tersedia'
-          : 'Obat kosong';
+          ? context.l10n.medicationAvailable
+          : context.l10n.noMedication;
       final colorScheme = Theme.of(context).colorScheme;
       return Card(
         margin: EdgeInsets.zero,
@@ -131,7 +133,7 @@ class _CompartmentStatus extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Ruang $number',
+                      context.l10n.compartment3((number).toString()),
                       style: Theme.of(context).textTheme.titleSmall,
                     ),
                     const SizedBox(height: 2),
@@ -146,17 +148,17 @@ class _CompartmentStatus extends StatelessWidget {
     }
 
     final doseText = occupied == null
-        ? 'Belum terbaca'
+        ? context.l10n.notReadYet
         : occupied!
-        ? 'Terisi'
-        : 'Kosong';
+        ? context.l10n.filled
+        : context.l10n.empty;
     final doorText = !hasDoorSensor
-        ? 'Sensor pintu tidak tersedia'
+        ? context.l10n.doorSensorUnavailable
         : doorClosed == null
-        ? 'Belum terbaca'
+        ? context.l10n.notReadYet
         : doorClosed!
-        ? 'Tertutup'
-        : 'Terbuka';
+        ? context.l10n.closed
+        : context.l10n.open;
     final needsAttention =
         connected &&
         (occupied == false || (hasDoorSensor && doorClosed == false));
@@ -171,18 +173,18 @@ class _CompartmentStatus extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Kompartemen $number',
+              context.l10n.compartment4((number).toString()),
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 8),
             _StatusLine(
               icon: Icons.medication_outlined,
-              text: 'Obat: $doseText',
+              text: context.l10n.medication((doseText).toString()),
             ),
             const SizedBox(height: 4),
             _StatusLine(
               icon: Icons.door_front_door_outlined,
-              text: 'Pintu: $doorText',
+              text: context.l10n.door((doorText).toString()),
             ),
           ],
         ),

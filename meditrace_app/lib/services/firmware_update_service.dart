@@ -1,3 +1,5 @@
+import '../l10n/localization.dart';
+
 import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
@@ -9,22 +11,27 @@ abstract final class FirmwareUpdateService {
       'https://github.com/GrowNecro/meditracre/releases/latest/download/'
       'meditrace-esp32-c3.bin';
 
-  static Future<Uint8List> downloadLatestEsp32C3() async {
+  static Future<Uint8List> downloadLatestEsp32C3({
+    String languageCode = 'en',
+  }) async {
     final response = await http
         .get(Uri.parse(latestEsp32C3Url))
         .timeout(const Duration(seconds: 45));
     if (response.statusCode != 200) {
       throw FirmwareUpdateException(
-        'Firmware online tidak tersedia (${response.statusCode}).',
+        stringsForLanguage(languageCode)
+            .firmwareUnavailable((response.statusCode).toString()),
       );
     }
     final bytes = response.bodyBytes;
     if (bytes.isEmpty) {
-      throw const FirmwareUpdateException('File firmware online kosong.');
+      throw FirmwareUpdateException(
+        stringsForLanguage(languageCode).onlineFirmwareEmpty,
+      );
     }
     if (bytes.first != 0xE9) {
-      throw const FirmwareUpdateException(
-        'File bukan firmware ESP32 yang valid; update dibatalkan.',
+      throw FirmwareUpdateException(
+        stringsForLanguage(languageCode).invalidEsp32Firmware,
       );
     }
     return Uint8List.fromList(bytes);

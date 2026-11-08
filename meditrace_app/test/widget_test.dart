@@ -15,6 +15,91 @@ import 'package:meditrace_app/services/battery_estimate.dart';
 import 'package:meditrace_app/services/local_database.dart';
 
 void main() {
+  testWidgets('startup welcome uses default English', (tester) async {
+    await tester.pumpWidget(
+      MeditraceApp(
+        showStartupSplash: true,
+        bleService: _FakeBleService(),
+        database: _MemoryLocalDatabase(),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Welcome to MEDITRACE'), findsOneWidget);
+    await tester.tap(find.text('Continue as guest'));
+    await tester.pumpAndSettle();
+    expect(find.text('Welcome!'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('language changes immediately and survives app restart', (
+    tester,
+  ) async {
+    final database = _MemoryLocalDatabase();
+    await tester.pumpWidget(
+      MeditraceApp(bleService: _FakeBleService(), database: database),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Welcome!'), findsOneWidget);
+    expect(
+      Localizations.localeOf(tester.element(find.byType(NavigationBar))),
+      const Locale('en'),
+    );
+
+    await tester.tap(find.text('Profile'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('language-selector')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Bahasa Indonesia').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Bahasa'), findsOneWidget);
+    expect(find.text('Profil'), findsWidgets);
+    expect(database.settings['language_code'], 'id');
+    expect(
+      Localizations.localeOf(tester.element(find.byType(NavigationBar))),
+      const Locale('id'),
+    );
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpWidget(
+      MeditraceApp(bleService: _FakeBleService(), database: database),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Selamat datang!'), findsOneWidget);
+    await tester.tap(find.text('Jadwal'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.add));
+    await tester.pumpAndSettle();
+    expect(find.text('Batal'), findsOneWidget);
+    await tester.tap(find.text('Batal'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Profil'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('language-selector')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('English').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Language'), findsOneWidget);
+    expect(database.settings['language_code'], 'en');
+    await tester.tap(find.text('Home'));
+    await tester.pumpAndSettle();
+    expect(find.text('Welcome!'), findsOneWidget);
+  });
+
+  testWidgets('unsupported saved language falls back to English', (
+    tester,
+  ) async {
+    final database = _MemoryLocalDatabase()..settings['language_code'] = 'fr';
+    await tester.pumpWidget(
+      MeditraceApp(bleService: _FakeBleService(), database: database),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Welcome!'), findsOneWidget);
+    expect(
+      Localizations.localeOf(tester.element(find.byType(NavigationBar))),
+      const Locale('en'),
+    );
+  });
+
   testWidgets('mode estimasi menghapus tegangan ADC lama', (tester) async {
     final service = _FakeBleService();
     final app = AppProvider(database: _MemoryLocalDatabase());
@@ -51,19 +136,19 @@ void main() {
       '{"battery":50,"battery_estimated":true,"battery_voltage":null}',
     );
     await tester.pumpAndSettle();
-    expect(find.text('Estimasi baterai'), findsOneWidget);
+    expect(find.text('Estimated battery'), findsOneWidget);
     expect(find.text('5.70 V'), findsNothing);
-    await tester.tap(find.text('Perangkat'));
+    await tester.tap(find.text('Device'));
     await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(find.text('Detail perangkat'), 200);
-    await tester.tap(find.text('Detail perangkat'));
+    await tester.scrollUntilVisible(find.text('Device details'), 200);
+    await tester.tap(find.text('Device details'));
     await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(find.text('Tandai baterai penuh'), 200);
-    await tester.tap(find.text('Tandai baterai penuh'));
+    await tester.scrollUntilVisible(find.text('Mark battery as full'), 200);
+    await tester.tap(find.text('Mark battery as full'));
     await tester.pumpAndSettle();
-    expect(find.text('Baterai sudah dicas penuh?'), findsOneWidget);
+    expect(find.text('Is the battery fully charged?'), findsOneWidget);
     expect(service.commands, isNot(contains('BATTERY_FULL')));
-    await tester.tap(find.text('Tandai penuh'));
+    await tester.tap(find.text('Mark as full'));
     await tester.pumpAndSettle();
     expect(
       service.commands.where((value) => value == 'BATTERY_FULL'),
@@ -170,7 +255,7 @@ void main() {
   testWidgets('menampilkan kondisi awal disconnected', (tester) async {
     await tester.pumpWidget(MeditraceApp(bleService: _FakeBleService()));
 
-    expect(find.text('MEDITRACE belum terhubung'), findsOneWidget);
+    expect(find.text('MEDITRACE not connected'), findsOneWidget);
     expect(find.text('Belum terhubung'), findsNothing);
     expect(find.byIcon(Icons.bluetooth_searching), findsOneWidget);
   });
@@ -184,7 +269,7 @@ void main() {
         database: _MemoryLocalDatabase(),
       ),
     );
-    await tester.tap(find.text('Jadwal').first);
+    await tester.tap(find.text('Schedule').first);
     await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.add));
     await tester.pumpAndSettle();
@@ -192,7 +277,7 @@ void main() {
     await tester.tapAt(const Offset(1, 1));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
-    expect(find.text('Jadwal Obat'), findsOneWidget);
+    expect(find.text('Medication Schedule'), findsOneWidget);
   });
 
   testWidgets('jadwal baru tidak meminta pemilihan ruang obat', (tester) async {
@@ -202,7 +287,7 @@ void main() {
         database: _MemoryLocalDatabase(),
       ),
     );
-    await tester.tap(find.text('Jadwal').first);
+    await tester.tap(find.text('Schedule').first);
     await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.add));
     await tester.pumpAndSettle();
@@ -210,24 +295,24 @@ void main() {
     await tester.tap(find.text('OK'));
     await tester.pumpAndSettle();
     expect(find.text('Pilih ruang obat'), findsNothing);
-    expect(find.text('Setiap hari'), findsOneWidget);
+    expect(find.text('Every day'), findsOneWidget);
     expect(tester.takeException(), isNull);
-    expect(find.text('Jadwal Obat'), findsOneWidget);
+    expect(find.text('Medication Schedule'), findsOneWidget);
   });
 
   testWidgets('menutup dialog profil tidak memakai field yang sudah dibuang', (
     tester,
   ) async {
     await tester.pumpWidget(MeditraceApp(bleService: _FakeBleService()));
-    await tester.tap(find.text('Profil'));
+    await tester.tap(find.text('Profile'));
     await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.edit_outlined));
     await tester.pumpAndSettle();
-    expect(find.text('Ubah profil'), findsOneWidget);
-    await tester.tap(find.text('Batal'));
+    expect(find.text('Edit profile'), findsOneWidget);
+    await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
-    expect(find.text('Profil'), findsWidgets);
+    expect(find.text('Profile'), findsWidgets);
   });
 
   test('parsing device info aman untuk payload minimum', () {
@@ -282,10 +367,10 @@ void main() {
   });
 
   test('estimasi baterai memakai kapasitas dan arus rata-rata C3', () {
-    expect(BatteryEstimate.label(100), '10 jam 0 menit');
-    expect(BatteryEstimate.label(82), '8 jam 12 menit');
-    expect(BatteryEstimate.label(15), '1 jam 30 menit');
-    expect(BatteryEstimate.label(0), 'Belum tersedia');
+    expect(BatteryEstimate.label(100), '10 hr 0 min');
+    expect(BatteryEstimate.label(82), '8 hr 12 min');
+    expect(BatteryEstimate.label(15), '1 hr 30 min');
+    expect(BatteryEstimate.label(0), 'Not available yet');
   });
 
   test('konfirmasi minum obat bisa dicatat dan dibatalkan', () async {
@@ -324,7 +409,7 @@ void main() {
       service.emitConnected();
       await tester.pumpAndSettle();
       await tester.pump(const Duration(seconds: 1));
-      await tester.tap(find.text('Perangkat'));
+      await tester.tap(find.text('Device'));
       await tester.pump();
       await tester.pumpAndSettle();
 
@@ -336,17 +421,17 @@ void main() {
         '{"sensors":[1,0,0,0,0,0],"doors":[0,1,1,1,1,1],"sensor_valid":true}',
       );
       await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(find.text('Kompartemen 1'), 200);
-      expect(find.text('Obat: Terisi'), findsOneWidget);
-      expect(find.text('Pintu: Terbuka'), findsOneWidget);
-      await tester.scrollUntilVisible(find.text('Kompartemen 5'), 250);
-      expect(find.text('Kompartemen 5'), findsOneWidget);
-      expect(find.text('Kompartemen 6', skipOffstage: false), findsNothing);
+      await tester.scrollUntilVisible(find.text('Compartment 1'), 200);
+      expect(find.text('Medication: Filled'), findsOneWidget);
+      expect(find.text('Door: Open'), findsOneWidget);
+      await tester.scrollUntilVisible(find.text('Compartment 5'), 250);
+      expect(find.text('Compartment 5'), findsOneWidget);
+      expect(find.text('Compartment 6', skipOffstage: false), findsNothing);
 
       service.emitStatus('{"sensors":[],"doors":[],"sensor_valid":false}');
       await tester.pump();
-      expect(find.text('Obat: Belum terbaca'), findsWidgets);
-      expect(find.text('Obat: Kosong'), findsNothing);
+      expect(find.text('Medication: Not read yet'), findsWidgets);
+      expect(find.text('Medication: Empty'), findsNothing);
     },
   );
 
@@ -365,11 +450,11 @@ void main() {
     service.emitConnected();
     await tester.pumpAndSettle();
 
-    expect(find.text('Kotak obat'), findsOneWidget);
-    await tester.scrollUntilVisible(find.text('Status kompartemen'), 250);
-    expect(find.text('Status kompartemen'), findsOneWidget);
-    expect(find.text('Perlu diisi'), findsOneWidget);
-    expect(find.text('Pintu: Terbuka'), findsNothing);
+    expect(find.text('Medication box'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('Compartment status'), 250);
+    expect(find.text('Compartment status'), findsOneWidget);
+    expect(find.text('Needs refill'), findsOneWidget);
+    expect(find.text('Door: Open'), findsNothing);
     expect(find.text('RTC'), findsNothing);
     expect(find.text('Ruang 6', skipOffstage: false), findsNothing);
     expect(tester.takeException(), isNull);
@@ -383,7 +468,7 @@ void main() {
     service.emitConnected();
     await tester.pump();
     await tester.pump();
-    final warning = find.textContaining('Sinyal lemah');
+    final warning = find.textContaining('Weak signal');
 
     await tester.pump(const Duration(seconds: 30));
     await tester.pump(const Duration(seconds: 30));
@@ -419,14 +504,14 @@ void main() {
     await tester.pump(const Duration(seconds: 30));
     await tester.pump(const Duration(seconds: 30));
     await tester.pump();
-    expect(find.textContaining('Sinyal lemah'), findsOneWidget);
+    expect(find.textContaining('Weak signal'), findsOneWidget);
 
     service.emitStatus('{"simulated_rssi":-60}');
     await tester.pump();
     await tester.pump(const Duration(seconds: 30));
     await tester.pump(const Duration(seconds: 30));
     await tester.pump();
-    expect(find.textContaining('Sinyal lemah'), findsNothing);
+    expect(find.textContaining('Weak signal'), findsNothing);
   });
 
   testWidgets('Home tetap terbaca di layar kecil dengan teks diperbesar', (
@@ -454,10 +539,10 @@ void main() {
     );
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
-      find.text('Isi obat sebelum jadwal berikutnya.'),
+      find.text('Refill medication before the next schedule.'),
       200,
     );
-    expect(find.text('1 dari 5 kompartemen terisi'), findsOneWidget);
+    expect(find.text('1 of 5 compartments filled'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -621,7 +706,7 @@ void main() {
     final createdAt = DateTime(2026, 11, 1, 23, 58);
     final schedule = MedicationSchedule(
       id: 101,
-      label: 'Jadwal obat',
+      label: 'Medication schedule',
       hour: 0,
       minute: 5,
       updatedAt: createdAt,
@@ -640,7 +725,7 @@ void main() {
     final app = AppProvider(database: _MemoryLocalDatabase());
     final schedule = MedicationSchedule(
       id: 102,
-      label: 'Jadwal obat',
+      label: 'Medication schedule',
       hour: 8,
       minute: 0,
     );
@@ -653,7 +738,7 @@ void main() {
           timestamp: DateTime(2026, 11, 1, 8, 10),
         ),
       ),
-      'Obat diminum tepat waktu.',
+      'Medication taken on time.',
     );
     expect(
       app

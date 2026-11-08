@@ -1,3 +1,5 @@
+import '../../l10n/localization.dart';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -12,7 +14,9 @@ class HistoryScreen extends StatefulWidget {
 }
 
 class _HistoryScreenState extends State<HistoryScreen> {
-  final _familyApi = FamilyApi();
+  late final _familyApi = FamilyApi(
+    languageCode: () => context.read<AppProvider>().languageCode,
+  );
   List<dynamic> _familyAlerts = [];
 
   @override
@@ -55,10 +59,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final events = app.history;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Riwayat'),
+        title: Text(context.l10n.history),
         actions: [
           IconButton(
-            tooltip: 'Hapus riwayat lokal',
+            tooltip: context.l10n.clearLocalHistory,
             onPressed: app.history.isEmpty
                 ? null
                 : () => _confirmClear(context, app),
@@ -85,12 +89,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'Belum ada riwayat',
+                    context.l10n.noHistoryYet,
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: 6),
-                  const Text(
-                    'Aktivitas obat dan perangkat akan muncul di sini.',
+                  Text(
+                    context.l10n.medicationAndDeviceActivityWillAppearHere,
                     textAlign: TextAlign.center,
                   ),
                 ],
@@ -126,7 +130,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     subtitle: Text(
                       '${time.day.toString().padLeft(2, '0')}/${time.month.toString().padLeft(2, '0')}/${time.year} '
                       '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}'
-                      '${event.sensorId == null ? '' : ' · Ruang ${event.sensorId}'}',
+                      '${event.sensorId == null ? '' : context.l10n.compartment2((event.sensorId).toString())}',
                     ),
                   ),
                 );
@@ -141,18 +145,16 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Hapus semua riwayat?'),
-        content: const Text(
-          'Semua aktivitas lokal akan dihapus dan tidak dapat dipulihkan.',
-        ),
+        title: Text(context.l10n.clearAllHistory),
+        content: Text(context.l10n.allLocalActivityWillBeDeletedAndCannot),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Batal'),
+            child: Text(context.l10n.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Hapus'),
+            child: Text(context.l10n.delete),
           ),
         ],
       ),
@@ -194,32 +196,38 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   String _eventTitle(String type, bool? state, String status) => switch (type) {
-    'DOSE_REMOVED' => 'Obat diambil',
+    'DOSE_REMOVED' => context.l10n.medicationRemoved,
     'DOSE_STATE_CHANGED' =>
-      state == true ? 'Kompartemen terisi' : 'Kompartemen kosong',
+      state == true
+          ? context.l10n.compartmentFilled
+          : context.l10n.compartmentEmpty,
     'DOOR_STATE_CHANGED' =>
-      state == true ? 'Kompartemen ditutup' : 'Kompartemen dibuka',
-    'DOSE_ALARM' => 'Pengingat obat',
-    'DOSE_CONFIRMED' => 'Obat diminum · ${_timingText(status)}',
-    'DOSE_CONFIRMATION_REVOKED' => 'Konfirmasi minum dibatalkan',
-    'DOSE_MISSED' => 'Jadwal obat terlewat',
+      state == true
+          ? context.l10n.compartmentClosed
+          : context.l10n.compartmentOpened,
+    'DOSE_ALARM' => context.l10n.medicationReminder,
+    'DOSE_CONFIRMED' => context.l10n.medicationTaken2(
+      (_timingText(status)).toString(),
+    ),
+    'DOSE_CONFIRMATION_REVOKED' => context.l10n.medicationConfirmationRevoked,
+    'DOSE_MISSED' => context.l10n.medicationScheduleMissed,
     'BLE_CONNECTED' =>
       status == 'RECONNECTED'
-          ? 'MEDITRACE hidup kembali dan terhubung'
-          : 'MEDITRACE hidup dan terhubung',
-    'BLE_DISCONNECTED' => 'Koneksi MEDITRACE terputus',
-    'SEPARATION_PATIENT_WARNED' => 'Peringatan: MEDITRACE tidak terdeteksi',
-    'SEPARATION_CAREGIVER_ESCALATED' => 'Peringatan dikirim ke keluarga',
-    'SEPARATION_FALSE_ALARM' => 'MEDITRACE terhubung kembali',
-    'MEDBOX_LEFT_BEHIND' => 'MEDITRACE dilaporkan tertinggal',
-    _ => 'Aktivitas perangkat',
+          ? context.l10n.meditracePoweredBackOnAndConnected
+          : context.l10n.meditracePoweredOnAndConnected,
+    'BLE_DISCONNECTED' => context.l10n.meditraceConnectionLost,
+    'SEPARATION_PATIENT_WARNED' => context.l10n.warningMeditraceNotDetected,
+    'SEPARATION_CAREGIVER_ESCALATED' => context.l10n.alertSentToFamily,
+    'SEPARATION_FALSE_ALARM' => context.l10n.meditraceReconnected,
+    'MEDBOX_LEFT_BEHIND' => context.l10n.meditraceReportedLeftBehind,
+    _ => context.l10n.deviceActivity,
   };
 
   String _timingText(String status) => switch (status) {
-    'EARLY' => 'lebih cepat',
-    'ON_TIME' => 'tepat waktu',
-    'LATE' => 'terlambat',
-    _ => 'tercatat',
+    'EARLY' => context.l10n.early2,
+    'ON_TIME' => context.l10n.onTime,
+    'LATE' => context.l10n.late,
+    _ => context.l10n.recorded,
   };
 }
 
@@ -237,14 +245,14 @@ class _FamilyAlertsSection extends StatelessWidget {
     margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
     child: Column(
       children: [
-        const ListTile(
+        ListTile(
           leading: Icon(Icons.notifications_active_outlined),
-          title: Text('Pemberitahuan keluarga'),
-          subtitle: Text('Peringatan caregiver dan anggota keluarga'),
+          title: Text(context.l10n.familyNotifications),
+          subtitle: Text(context.l10n.alertsForCaregiversAndFamilyMembers),
         ),
         if (alerts.isEmpty)
-          const ListTile(
-            title: Text('Belum ada pemberitahuan keluarga'),
+          ListTile(
+            title: Text(context.l10n.noFamilyNotificationsYet),
             contentPadding: EdgeInsets.fromLTRB(16, 0, 16, 12),
           ),
         for (final rawAlert in alerts)
@@ -253,16 +261,18 @@ class _FamilyAlertsSection extends StatelessWidget {
               final item = rawAlert as Map;
               final alertId = item['id']?.toString();
               return ListTile(
-                title: Text(item['title']?.toString() ?? 'Peringatan keluarga'),
+                title: Text(
+                  item['title']?.toString() ?? context.l10n.familyAlert,
+                ),
                 subtitle: Text(
-                  '${item['group_name'] ?? 'Keluarga'} · '
-                  '${item['sender_email'] ?? 'Email pengirim tidak tersedia'} · '
+                  '${item['group_name'] ?? context.l10n.family} · '
+                  '${item['sender_email'] ?? context.l10n.senderEmailUnavailable} · '
                   '${item['occurred_at'] ?? '-'}',
                 ),
                 trailing: item['acknowledged_at'] == null && alertId != null
                     ? TextButton(
                         onPressed: () => onAcknowledge(alertId),
-                        child: const Text('Tangani'),
+                        child: Text(context.l10n.acknowledge),
                       )
                     : const Icon(Icons.check_circle_outline),
               );
