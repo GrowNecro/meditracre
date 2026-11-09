@@ -1898,6 +1898,36 @@ abstract class AppLocalizations {
   /// **'Could not acknowledge this alert. Please try again.'**
   String get alertAcknowledgeFailed;
 
+  /// No description provided for @clearFamilyNotifications.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear family notifications'**
+  String get clearFamilyNotifications;
+
+  /// No description provided for @clearFamilyNotificationsDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove all family notifications from your cloud inbox on this account? Other family members\' copies will stay.'**
+  String get clearFamilyNotificationsDescription;
+
+  /// No description provided for @deleteFamilyNotification.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete family notification'**
+  String get deleteFamilyNotification;
+
+  /// No description provided for @deleteFamilyNotificationDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove this notification from your cloud inbox on this account? Other family members\' copies will stay.'**
+  String get deleteFamilyNotificationDescription;
+
+  /// No description provided for @alertDeleteFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not delete the notification. Please try again.'**
+  String get alertDeleteFailed;
+
   /// No description provided for @noActivityYet.
   ///
   /// In en, this message translates to:

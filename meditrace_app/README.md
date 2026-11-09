@@ -1,12 +1,12 @@
 # Aplikasi Android MEDITRACE
 
 Aplikasi Flutter untuk kotak obat ESP32-C3 lima kompartemen. Versi saat ini
-**1.0.4+10**, package **`com.example.meditrace`**, database lokal
+**1.0.5+11**, package **`com.example.meditrace`**, database lokal
 **`meditrace_local.db`**. Firmware pasangannya **0.9.7**.
 
 ## Fitur
 
-- Tab Home, Jadwal, Riwayat, Perangkat, dan Profil.
+- Tab Home, Jadwal, Activity, Perangkat, dan Profil.
 - Pencarian BLE nama `MEDITRACE-*`/`MEDBOX-*` atau service UUID MEDITRACE.
   Hasil tampil saat ditemukan dan diurutkan berdasarkan kekuatan sinyal.
 - Status isi/pintu lima ruang. Sensor tidak valid tidak dianggap semua kosong.

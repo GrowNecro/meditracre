@@ -52,7 +52,9 @@ npx wrangler secret put RESEND_API_KEY
   unduhan APK, dan kode untuk dimasukkan manual jika aplikasi belum terpasang.
 - `POST /v1/registerDevice`, `/v1/unregisterDevice` — token perangkat untuk
   notifikasi.
-- `POST /v1/sendAlert`, `/v1/acknowledgeAlert` — peringatan anggota keluarga.
+- `POST /v1/sendAlert`, `/v1/acknowledgeAlert`, `/v1/deleteAlert`,
+  `/v1/clearAlerts` — kirim, tangani, hapus satu, atau hapus semua salinan
+  peringatan keluarga milik akun yang login.
 
 Seluruh endpoint `POST /v1/*` membutuhkan Firebase ID token; Worker memeriksa
 token sebelum membaca atau menulis data Firestore.

@@ -56,6 +56,8 @@ class MeditracePeripheral(
     @Volatile private var doors = List(5) { 1 }
     @Volatile private var timeSynced = false
     @Volatile private var otaBytes = 0
+    @Volatile private var deviceName = "MEDITRACE-DUMMY"
+    @Volatile private var originalBluetoothName: String? = null
 
     @SuppressLint("MissingPermission")
     fun start(args: Map<*, *>, result: MethodChannel.Result) {
@@ -68,6 +70,23 @@ class MeditracePeripheral(
         val bleAdvertiser = adapter.bluetoothLeAdvertiser
         if (bleAdvertiser == null || !adapter.isMultipleAdvertisementSupported) {
             result.error("UNSUPPORTED", "HP ini tidak mendukung BLE Peripheral/advertising.", null)
+            return
+        }
+        deviceName = (args["device_name"] as? String)
+            ?.trim()
+            ?.take(20)
+            ?.takeIf { it.isNotEmpty() }
+            ?: "MEDITRACE-DUMMY"
+        try {
+            originalBluetoothName = adapter.name
+            adapter.name = deviceName
+        } catch (_: SecurityException) {
+            originalBluetoothName = null
+            result.error(
+                "BLUETOOTH_NAME",
+                "Android tidak mengizinkan perubahan nama Bluetooth sementara.",
+                null,
+            )
             return
         }
         update(args)
@@ -166,6 +185,10 @@ class MeditracePeripheral(
         try { server?.close() } catch (_: SecurityException) { }
         server = null
         advertiser = null
+        originalBluetoothName?.let { originalName ->
+            try { manager?.adapter?.name = originalName } catch (_: SecurityException) { }
+        }
+        originalBluetoothName = null
         connected.clear()
         statusSubscribers.clear()
         eventSubscribers.clear()
@@ -187,7 +210,7 @@ class MeditracePeripheral(
 
     private fun infoJson(): String = JSONObject()
         .put("device_id", "MEDITRACE-DUMMY")
-        .put("device_name", "MEDITRACE-DUMMY")
+        .put("device_name", deviceName)
         .put("board", "ESP32-C3")
         .put("firmware", "dummy-c3-0.8.0")
         .put("battery", battery)
@@ -320,7 +343,10 @@ class MeditracePeripheral(
                 .addServiceUuid(ParcelUuid(serviceUuid))
                 .setIncludeDeviceName(false)
                 .build()
-            try { advertiser?.startAdvertising(settings, data, advertiseCallback) }
+            val scanResponse = AdvertiseData.Builder()
+                .setIncludeDeviceName(true)
+                .build()
+            try { advertiser?.startAdvertising(settings, data, scanResponse, advertiseCallback) }
             catch (error: Exception) { failStart("ADVERTISE", error.message ?: "Tidak dapat menyiarkan BLE.") }
         }
 

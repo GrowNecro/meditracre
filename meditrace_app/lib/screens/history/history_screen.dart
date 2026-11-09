@@ -33,10 +33,12 @@ class _HistoryScreenState extends State<HistoryScreen>
   StreamSubscription<void>? _notificationSubscription;
   List<dynamic> _familyAlerts = [];
   final Set<String> _acknowledging = {};
+  final Set<String> _deletingAlerts = {};
   int _loadGeneration = 0;
   bool _loading = true;
   bool _signedIn = false;
   bool _loadFailed = false;
+  bool _clearingFamilyNotifications = false;
 
   @override
   void initState() {
@@ -76,6 +78,7 @@ class _HistoryScreenState extends State<HistoryScreen>
   }
 
   Future<void> _loadFamilyAlerts({bool clear = false}) async {
+    if (_clearingFamilyNotifications) return;
     final generation = ++_loadGeneration;
     if (!mounted) return;
     setState(() {
@@ -160,12 +163,26 @@ class _HistoryScreenState extends State<HistoryScreen>
             icon: const Icon(Icons.refresh),
           ),
           PopupMenuButton<String>(
-            onSelected: (_) => _confirmClear(context, app),
+            onSelected: (action) {
+              if (action == 'clear-local') {
+                unawaited(_confirmClear(context, app));
+              } else if (action == 'clear-cloud') {
+                unawaited(_confirmClearFamilyNotifications());
+              }
+            },
             itemBuilder: (context) => [
               PopupMenuItem(
-                value: 'clear-history',
+                value: 'clear-local',
                 enabled: app.history.isNotEmpty,
                 child: Text(context.l10n.clearLocalHistory),
+              ),
+              PopupMenuItem(
+                value: 'clear-cloud',
+                enabled:
+                    _familyAlerts.isNotEmpty &&
+                    _deletingAlerts.isEmpty &&
+                    !_clearingFamilyNotifications,
+                child: Text(context.l10n.clearFamilyNotifications),
               ),
             ],
           ),
@@ -278,7 +295,8 @@ class _HistoryScreenState extends State<HistoryScreen>
   Widget _buildFamilyAlert(Map item) {
     final alertId = item['id']?.toString();
     final pending = item['acknowledged_at'] == null;
-    final busy = _acknowledging.contains(alertId);
+    final busy =
+        _clearingFamilyNotifications || _acknowledging.contains(alertId);
     final scheme = Theme.of(context).colorScheme;
     final time = DateTime.tryParse(item['occurred_at']?.toString() ?? '');
     return Card(
@@ -301,10 +319,27 @@ class _HistoryScreenState extends State<HistoryScreen>
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    item['title']?.toString() ?? context.l10n.familyAlert,
+                    _familyAlertTitle(item),
                     style: Theme.of(context).textTheme.titleSmall,
                   ),
                 ),
+                if (alertId != null)
+                  IconButton(
+                    tooltip: context.l10n.deleteFamilyNotification,
+                    onPressed:
+                        _clearingFamilyNotifications ||
+                            _deletingAlerts.contains(alertId)
+                        ? null
+                        : () => _confirmDeleteFamilyNotification(alertId),
+                    icon:
+                        _clearingFamilyNotifications ||
+                            _deletingAlerts.contains(alertId)
+                        ? const SizedBox.square(
+                            dimension: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.delete_outline),
+                  ),
               ],
             ),
             const SizedBox(height: 12),
@@ -352,6 +387,130 @@ class _HistoryScreenState extends State<HistoryScreen>
         ),
       ),
     );
+  }
+
+  String _familyAlertTitle(Map item) {
+    final title = item['title']?.toString().trim() ?? '';
+    final normalized = title.toLowerCase();
+    final l10n = context.l10n;
+
+    // Family alerts persist the title in the sender's language. Translate
+    // known system alert titles at display time so changing this device's
+    // language also updates older entries in the Activity feed.
+    if (normalized == 'medication status: taken' ||
+        normalized == 'status obat: sudah diminum') {
+      return l10n.medicationStatusTaken;
+    }
+    if (normalized == 'patient reported meditrace left behind' ||
+        normalized == 'pasien melaporkan meditrace tertinggal') {
+      return l10n.patientReportedMeditraceLeftBehind;
+    }
+    if (normalized == 'meditrace disconnected from phone' ||
+        normalized == 'meditrace terputus dari hp') {
+      return l10n.meditraceDisconnectedFromPhone;
+    }
+    final englishCompartment = RegExp(r'^compartment (.+) is empty$')
+        .firstMatch(normalized);
+    if (englishCompartment != null) {
+      return l10n.compartmentIsEmpty(englishCompartment.group(1)!);
+    }
+    final indonesianCompartment = RegExp(r'^obat di kompartemen (.+) kosong$')
+        .firstMatch(normalized);
+    if (indonesianCompartment != null) {
+      return l10n.compartmentIsEmpty(indonesianCompartment.group(1)!);
+    }
+    return title.isEmpty ? l10n.familyAlert : title;
+  }
+
+  Future<void> _confirmDeleteFamilyNotification(String alertId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(context.l10n.deleteFamilyNotification),
+        content: Text(context.l10n.deleteFamilyNotificationDescription),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(context.l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(context.l10n.delete),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && mounted && !_clearingFamilyNotifications) {
+      await _deleteFamilyNotification(alertId);
+    }
+  }
+
+  Future<void> _confirmClearFamilyNotifications() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(context.l10n.clearFamilyNotifications),
+        content: Text(context.l10n.clearFamilyNotificationsDescription),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(context.l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(context.l10n.delete),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true ||
+        !mounted ||
+        _clearingFamilyNotifications ||
+        _deletingAlerts.isNotEmpty) {
+      return;
+    }
+    setState(() {
+      _clearingFamilyNotifications = true;
+      _loadGeneration++;
+    });
+    try {
+      await _familyApi.clearAlerts();
+      if (mounted) setState(() => _familyAlerts = []);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(context.l10n.alertDeleteFailed)));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _clearingFamilyNotifications = false);
+      }
+    }
+    if (mounted) await _loadFamilyAlerts();
+  }
+
+  Future<void> _deleteFamilyNotification(String alertId) async {
+    if (_clearingFamilyNotifications || !_deletingAlerts.add(alertId)) return;
+    setState(() {});
+    try {
+      await _familyApi.deleteAlert(alertId);
+      if (!mounted) return;
+      setState(() {
+        _familyAlerts = [
+          for (final item in _familyAlerts)
+            if ((item as Map)['id']?.toString() != alertId) item,
+        ];
+      });
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(context.l10n.alertDeleteFailed)));
+      }
+    } finally {
+      if (mounted) setState(() => _deletingAlerts.remove(alertId));
+    }
   }
 
   Future<void> _confirmClear(BuildContext context, AppProvider app) async {

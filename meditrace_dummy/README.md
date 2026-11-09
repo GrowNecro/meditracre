@@ -22,11 +22,13 @@ Atau buat APK dengan `flutter build apk --debug`; hasilnya di
 
 1. Pasang **MEDITRACE Dummy** di HP kedua yang mendukung BLE Peripheral/advertising.
 2. Aktifkan Bluetooth dan izinkan akses *Perangkat terdekat*, lalu tekan
-   **Mulai siarkan MEDITRACE Dummy**. Biarkan aplikasi terbuka selama pengujian.
+   **Mulai siarkan MEDITRACE Dummy**. Sebelum mulai, Anda dapat mengubah nama
+   BLE pada kolom **Nama perangkat BLE**. Android memakai nama Bluetooth HP
+   kedua itu sementara selama penyiaran; nama semula dipulihkan saat siaran
+   dihentikan. Biarkan aplikasi terbuka selama pengujian.
 3. Di HP pertama, buka aplikasi MEDITRACE utama → cari perangkat → pilih entri
-   dengan service UUID MEDITRACE. Nama saat scan mungkin nama HP kedua, sebab
-   Android tidak mengizinkan aplikasi mengganti nama iklan BLE secara terpisah;
-   setelah tersambung `device_info` bernama `MEDITRACE-DUMMY`.
+   dengan nama BLE yang dipilih atau service UUID MEDITRACE. ID internal tetap
+   `MEDITRACE-DUMMY`, sedangkan `device_info` menampilkan nama yang dipilih.
 4. Ubah sakelar **Obat ada/kosong** (IR) atau **Pintu tertutup/terbuka** (reed)
    pada HP kedua. Status dan event akan dikirim ke aplikasi utama.
 5. Untuk menguji peringatan jarak, pilih **Jauh** di bagian *Simulasi jarak*.

@@ -237,6 +237,9 @@ class FamilyApi {
       _call('unregisterDevice', {'token': token});
   Future<Map<String, dynamic>> acknowledge(String alertId) =>
       _call('acknowledgeAlert', {'alertId': alertId});
+  Future<Map<String, dynamic>> deleteAlert(String alertId) =>
+      _call('deleteAlert', {'alertId': alertId});
+  Future<Map<String, dynamic>> clearAlerts() => _call('clearAlerts');
   Future<Map<String, dynamic>> testEmail(String email) =>
       _call('testEmail', {'email': email});
 

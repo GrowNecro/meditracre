@@ -1044,6 +1044,24 @@ class AppLocalizationsEn extends AppLocalizations {
       'Could not acknowledge this alert. Please try again.';
 
   @override
+  String get clearFamilyNotifications => 'Clear family notifications';
+
+  @override
+  String get clearFamilyNotificationsDescription =>
+      'Remove all family notifications from your cloud inbox on this account? Other family members\' copies will stay.';
+
+  @override
+  String get deleteFamilyNotification => 'Delete family notification';
+
+  @override
+  String get deleteFamilyNotificationDescription =>
+      'Remove this notification from your cloud inbox on this account? Other family members\' copies will stay.';
+
+  @override
+  String get alertDeleteFailed =>
+      'Could not delete the notification. Please try again.';
+
+  @override
   String get noActivityYet => 'No activity yet';
 
   @override

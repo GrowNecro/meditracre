@@ -1043,6 +1043,24 @@ class AppLocalizationsId extends AppLocalizations {
       'Peringatan belum berhasil ditangani. Silakan coba lagi.';
 
   @override
+  String get clearFamilyNotifications => 'Hapus pemberitahuan keluarga';
+
+  @override
+  String get clearFamilyNotificationsDescription =>
+      'Hapus semua pemberitahuan keluarga dari kotak masuk cloud akun ini? Salinan anggota keluarga lain tetap ada.';
+
+  @override
+  String get deleteFamilyNotification => 'Hapus pemberitahuan keluarga';
+
+  @override
+  String get deleteFamilyNotificationDescription =>
+      'Hapus pemberitahuan ini dari kotak masuk cloud akun ini? Salinan anggota keluarga lain tetap ada.';
+
+  @override
+  String get alertDeleteFailed =>
+      'Pemberitahuan gagal dihapus. Silakan coba lagi.';
+
+  @override
   String get noActivityYet => 'Belum ada aktivitas';
 
   @override

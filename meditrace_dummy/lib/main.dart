@@ -17,8 +17,9 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
     await Firebase.initializeApp();
-  } on FirebaseException {
-    // Simulator BLE tetap dapat dipakai meski konfigurasi Firebase bermasalah.
+  } catch (_) {
+    // Firebase is optional for BLE simulation and the network test panel.
+    // Missing or invalid configuration must not prevent the dummy from opening.
   }
   runApp(const MeditraceDummyApp());
 }
@@ -57,6 +58,7 @@ class _SimulatorScreenState extends State<SimulatorScreen> {
   String message = 'Belum menyiarkan BLE.';
   final List<String> events = [];
   final _emailController = TextEditingController();
+  final _deviceNameController = TextEditingController(text: 'MEDITRACE-DUMMY');
   bool _notificationBusy = false;
   String? _notificationMessage;
   String? _workerMessage;
@@ -89,6 +91,7 @@ class _SimulatorScreenState extends State<SimulatorScreen> {
   void dispose() {
     _ble.setMethodCallHandler(null);
     _emailController.dispose();
+    _deviceNameController.dispose();
     super.dispose();
   }
 
@@ -261,7 +264,10 @@ class _SimulatorScreenState extends State<SimulatorScreen> {
       message = 'Menyiapkan GATT server…';
     });
     try {
-      await _ble.invokeMethod<void>('start', simulation.toNative());
+      await _ble.invokeMethod<void>('start', {
+        ...simulation.toNative(),
+        'device_name': _deviceNameController.text.trim(),
+      });
       if (mounted) setState(() => advertising = true);
     } on PlatformException catch (error) {
       if (mounted) setState(() => message = error.message ?? error.code);
@@ -367,7 +373,23 @@ class _SimulatorScreenState extends State<SimulatorScreen> {
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  'Jalankan di HP kedua. Di HP utama, cari perangkat MEDITRACE-DUMMY. Aplikasi ini mensimulasikan sensor, status ruang, dan event alarm jadwal; tidak membaca IR/reed fisik.',
+                  'Jalankan di HP kedua. Di HP utama, cari nama BLE yang Anda atur di bawah. Nama Bluetooth HP ini berubah sementara selama penyiaran dan dikembalikan saat dihentikan.',
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _deviceNameController,
+                  enabled: !advertising && !busy,
+                  maxLength: 20,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(
+                      RegExp(r'[A-Za-z0-9 _-]'),
+                    ),
+                  ],
+                  decoration: const InputDecoration(
+                    labelText: 'Nama perangkat BLE',
+                    hintText: 'MEDITRACE-DUMMY',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
                 const SizedBox(height: 12),
                 Text(message),

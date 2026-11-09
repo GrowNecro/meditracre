@@ -155,12 +155,13 @@ async function firestoreGet(env, path, {optional = false} = {}) {
   return {document, data: firestoreObject(document.fields)};
 }
 
-async function firestoreDelete(env, path) {
+async function firestoreDelete(env, path, {optional = false} = {}) {
   const access = await googleAccessToken(env);
   const response = await fetch(
     `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/${path}`,
     {method: 'DELETE', headers: {authorization: `Bearer ${access}`}},
   );
+  if (optional && response.status === 404) return;
   if (!response.ok) throw new Error('Firestore tidak dapat menghapus data.');
 }
 
@@ -187,6 +188,27 @@ async function firestoreListDocuments(env, path) {
     id: document.name.split('/').pop(),
     data: firestoreObject(document.fields),
   }));
+}
+
+async function firestoreListAllDocumentIds(env, path) {
+  const access = await googleAccessToken(env);
+  const ids = [];
+  let pageToken;
+  do {
+    const url = new URL(
+      `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/${path}`,
+    );
+    url.searchParams.set('pageSize', '1000');
+    if (pageToken) url.searchParams.set('pageToken', pageToken);
+    const response = await fetch(url, {
+      headers: {authorization: `Bearer ${access}`},
+    });
+    if (!response.ok) throw new Error('Firestore tidak dapat membaca daftar data.');
+    const result = await response.json();
+    ids.push(...(result.documents || []).map((document) => document.name.split('/').pop()));
+    pageToken = result.nextPageToken;
+  } while (pageToken);
+  return ids;
 }
 
 const cleanText = (value, field, maxLength = 160) => {
@@ -466,6 +488,29 @@ async function acknowledgeAlert(env, user, data) {
   return {ok: true};
 }
 
+async function deleteAlert(env, user, data) {
+  const alertId = cleanText(data.alertId, 'ID peringatan', 300);
+  const path = `users/${encodeURIComponent(user.sub)}/alerts/${encodeURIComponent(alertId)}`;
+  const alert = await firestoreGet(env, path, {optional: true});
+  if (alert) await firestoreDelete(env, path, {optional: true});
+  return {ok: true};
+}
+
+async function clearAlerts(env, user) {
+  const path = `users/${encodeURIComponent(user.sub)}/alerts`;
+  const alertIds = await firestoreListAllDocumentIds(env, path);
+  for (let index = 0; index < alertIds.length; index += 20) {
+    const batch = alertIds.slice(index, index + 20);
+    const results = await Promise.allSettled(batch.map((alertId) =>
+      firestoreDelete(env, `${path}/${encodeURIComponent(alertId)}`, {optional: true}),
+    ));
+    if (results.some((result) => result.status === 'rejected')) {
+      throw new Error('Sebagian pemberitahuan cloud gagal dihapus.');
+    }
+  }
+  return {ok: true, deletedCount: alertIds.length};
+}
+
 async function ensureUser(env, user) {
   const name = typeof user.name === 'string' && user.name.trim()
     ? user.name.trim().slice(0, 120)
@@ -578,7 +623,7 @@ export default { async fetch(request, env) {
     '/v1/joinFamily', '/v1/createInvitation',
     '/v1/sendInvitationEmail',
     '/v1/registerDevice', '/v1/unregisterDevice', '/v1/sendAlert',
-    '/v1/acknowledgeAlert',
+    '/v1/acknowledgeAlert', '/v1/deleteAlert', '/v1/clearAlerts',
   ]);
   if (request.method !== 'POST' || !endpoints.has(url.pathname)) return json({error:'Endpoint tidak ditemukan.'},404);
   try {
@@ -606,6 +651,10 @@ export default { async fetch(request, env) {
       return json(await sendAlert(env, user, data));
     } else if (url.pathname === '/v1/acknowledgeAlert') {
       return json(await acknowledgeAlert(env, user, data));
+    } else if (url.pathname === '/v1/deleteAlert') {
+      return json(await deleteAlert(env, user, data));
+    } else if (url.pathname === '/v1/clearAlerts') {
+      return json(await clearAlerts(env, user));
     } else if (url.pathname === '/v1/testEmail') {
       if (typeof data.email !== 'string' || !data.email.includes('@')) return json({error:'Email tidak valid.'},400);
       await sendEmail(env, data.email, 'Tes notifikasi', 'Email MEDITRACE berhasil dikirim.');

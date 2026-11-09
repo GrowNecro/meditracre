@@ -133,6 +133,81 @@ void main() {
     expect(api.alerts, hasLength(1));
   });
 
+  testWidgets('deleting a cloud notification preserves local activity', (
+    tester,
+  ) async {
+    api.alerts = [_alert('cloud-one', 'Family warning', 11)];
+    await showActivity(tester);
+    await tester.tap(find.byTooltip('Delete family notification'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete'));
+    await tester.pumpAndSettle();
+    expect(find.text('Family warning'), findsNothing);
+    expect(find.text('MEDITRACE reported left behind'), findsOneWidget);
+    expect(api.deletedAlertIds, ['cloud-one']);
+  });
+
+  testWidgets('clearing cloud notifications removes inbox alerts only', (
+    tester,
+  ) async {
+    api.alerts = [
+      _alert('cloud-one', 'Family warning one', 11),
+      _alert('cloud-two', 'Family warning two', 12),
+    ];
+    await showActivity(tester);
+    await tester.tap(find.byType(PopupMenuButton<String>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Clear family notifications'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete'));
+    await tester.pumpAndSettle();
+    expect(find.text('Family warning one'), findsNothing);
+    expect(find.text('Family warning two'), findsNothing);
+    expect(find.text('MEDITRACE reported left behind'), findsOneWidget);
+    expect(api.clearCalls, 1);
+    expect(api.alerts, isEmpty);
+  });
+
+  testWidgets('partial cloud clear refreshes the remaining inbox entries', (
+    tester,
+  ) async {
+    api.alerts = [
+      _alert('cloud-one', 'Family warning one', 11),
+      _alert('cloud-two', 'Family warning two', 12),
+    ];
+    api.failClearAfterRemovingOne = true;
+    await showActivity(tester);
+    await tester.tap(find.byType(PopupMenuButton<String>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Clear family notifications'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Could not delete the notification. Please try again.'),
+      findsOneWidget,
+    );
+    expect(find.text('Family warning one'), findsNothing);
+    expect(find.text('Family warning two'), findsOneWidget);
+  });
+
+  testWidgets('known cloud alert titles follow the selected language', (
+    tester,
+  ) async {
+    api.alerts = [_alert('cloud-one', 'Medication status: taken', 11)];
+    await showActivity(tester, language: 'id');
+    expect(find.text('Status obat: sudah diminum'), findsOneWidget);
+    expect(find.text('Medication status: taken'), findsNothing);
+  });
+
+  testWidgets('localized compartment alert keeps its compartment number', (
+    tester,
+  ) async {
+    api.alerts = [_alert('cloud-empty', 'Compartment 3 is empty', 11)];
+    await showActivity(tester, language: 'id');
+    expect(find.text('Obat di kompartemen 3 kosong'), findsOneWidget);
+  });
+
   testWidgets(
     'foreground messages refresh the feed and logout clears family data',
     (tester) async {
@@ -182,6 +257,9 @@ class _InboxApi extends FamilyApi {
   bool signedIn = true;
   bool failLoad = false;
   bool failAcknowledge = false;
+  bool failClearAfterRemovingOne = false;
+  int clearCalls = 0;
+  final deletedAlertIds = <String>[];
   List<Map<String, Object?>> alerts = [];
   final sessions = StreamController<String?>.broadcast();
   final messages = StreamController<void>.broadcast();
@@ -211,6 +289,27 @@ class _InboxApi extends FamilyApi {
           item,
     ];
     return {'ok': true};
+  }
+
+  @override
+  Future<Map<String, dynamic>> deleteAlert(String alertId) async {
+    deletedAlertIds.add(alertId);
+    alerts = [
+      for (final item in alerts)
+        if (item['id'] != alertId) item,
+    ];
+    return {'ok': true};
+  }
+
+  @override
+  Future<Map<String, dynamic>> clearAlerts() async {
+    clearCalls++;
+    if (failClearAfterRemovingOne) {
+      alerts = alerts.skip(1).toList();
+      throw const FamilyApiException('Partial failure');
+    }
+    alerts.clear();
+    return {'ok': true, 'deletedCount': 2};
   }
 
   @override
