@@ -290,5 +290,21 @@
   "onlineFirmwareEmpty": "File firmware online kosong.",
   "invalidEsp32Firmware": "File bukan firmware ESP32 yang valid; update dibatalkan.",
   "language": "Bahasa",
-  "languageSaveFailed": "Gagal menyimpan pilihan bahasa. Coba lagi."
+  "languageSaveFailed": "Gagal menyimpan pilihan bahasa. Coba lagi.",
+  "activity": "Aktivitas",
+  "openProfile": "Buka profil",
+  "familyNotificationsLoadFailed": "Pemberitahuan keluarga belum dapat dimuat",
+  "familyNotificationsRetryDescription": "Periksa koneksi lalu coba lagi. Riwayat lokal tetap tersedia.",
+  "retry": "Coba lagi",
+  "refreshFamilyNotifications": "Segarkan pemberitahuan keluarga",
+  "alertNeedsAttention": "Perlu ditangani",
+  "alertHandled": "Sudah ditangani",
+  "alertAcknowledgeFailed": "Peringatan belum berhasil ditangani. Silakan coba lagi.",
+  "noActivityYet": "Belum ada aktivitas",
+  "activityEmptyDescription": "Riwayat obat, aktivitas perangkat, dan pemberitahuan keluarga akan muncul di sini.",
+  "activityGuestDescription": "Aktivitas obat dan perangkat akan muncul di sini. Masuk melalui profil untuk menerima pemberitahuan keluarga juga.",
+  "localActivity": "Perangkat & obat",
+  "invitationAccepted": "Anda berhasil bergabung ke grup keluarga.",
+  "invitationReviewDescription": "Terima undangan ini untuk bergabung ke grup keluarga. Kode hanya dapat digunakan sekali.",
+  "invitationSignInDescription": "Masuk melalui kartu profil di atas, lalu terima undangan ini. Kode Anda tetap tersimpan di sini."
 }

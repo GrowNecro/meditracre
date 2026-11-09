@@ -1,7 +1,7 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:meditrace_app/main.dart';
 import 'package:meditrace_app/models/device_info.dart';
@@ -13,8 +13,191 @@ import 'package:meditrace_app/providers/ble_provider.dart';
 import 'package:meditrace_app/services/ble_service.dart';
 import 'package:meditrace_app/services/battery_estimate.dart';
 import 'package:meditrace_app/services/local_database.dart';
+import 'package:meditrace_app/services/family_api.dart';
+import 'package:provider/provider.dart';
 
 void main() {
+  testWidgets(
+    'initial and repeated invitation links open Profile with the pending code',
+    (tester) async {
+      const code = '0123456789ABCDEF01234567';
+      const uri = 'https://meditrace.grownecro.tech/invite/$code';
+      const messages = MethodChannel('com.llfbandit.app_links/messages');
+      const events = MethodChannel('com.llfbandit.app_links/events');
+      final messenger = tester.binding.defaultBinaryMessenger;
+      messenger.setMockMethodCallHandler(
+        messages,
+        (call) async => call.method == 'getInitialLink' ? uri : null,
+      );
+      messenger.setMockMethodCallHandler(events, (_) async => null);
+      addTearDown(() {
+        messenger.setMockMethodCallHandler(messages, null);
+        messenger.setMockMethodCallHandler(events, null);
+      });
+      final api = _SessionFamilyApi();
+      addTearDown(api.dispose);
+      await tester.pumpWidget(
+        MeditraceApp(
+          bleService: _FakeBleService(),
+          database: _MemoryLocalDatabase(),
+          familyApi: api,
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex,
+        4,
+      );
+      await tester.scrollUntilVisible(
+        find.text(code),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text(code), findsOneWidget);
+      await tester.tap(find.text('Home'));
+      await tester.pumpAndSettle();
+      expect(
+        tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex,
+        0,
+      );
+      tester.binding.channelBuffers.push(
+        events.name,
+        const StandardMethodCodec().encodeSuccessEnvelope(uri),
+        (_) {},
+      );
+      await tester.pumpAndSettle();
+      expect(
+        tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex,
+        4,
+      );
+      expect(find.text(code), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpAndSettle();
+    },
+  );
+
+  testWidgets(
+    'startup Google sign-in immediately updates the already mounted profile',
+    (tester) async {
+      final api = _SessionFamilyApi();
+      addTearDown(api.dispose);
+      await tester.pumpWidget(
+        MeditraceApp(
+          showStartupSplash: true,
+          bleService: _FakeBleService(),
+          database: _MemoryLocalDatabase(),
+          familyApi: api,
+        ),
+      );
+      await tester.pumpAndSettle();
+      final app = tester
+          .element(find.byType(NavigationBar))
+          .read<AppProvider>();
+      app.patientAge = 52;
+      app.emergencyPhone = '08123456789';
+      app.emergencyEmail = 'emergency@example.com';
+      await tester.tap(find.text('Sign in'));
+      await tester.pumpAndSettle();
+      expect(find.text('Welcome to MEDITRACE'), findsNothing);
+      await tester.tap(find.text('Profile'));
+      await tester.pumpAndSettle();
+      expect(find.text('account@example.com'), findsOneWidget);
+      expect(find.text('Sign out of account'), findsOneWidget);
+      expect(find.text('Not signed in'), findsNothing);
+      expect(app.patientAge, 52);
+      expect(app.emergencyPhone, '08123456789');
+      expect(app.emergencyEmail, 'emergency@example.com');
+    },
+  );
+
+  testWidgets(
+    'external login and logout synchronize profile and family without restarting',
+    (tester) async {
+      final api = _SessionFamilyApi();
+      addTearDown(api.dispose);
+      await tester.pumpWidget(
+        MeditraceApp(
+          bleService: _FakeBleService(),
+          database: _MemoryLocalDatabase(),
+          familyApi: api,
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Profile'));
+      await tester.pumpAndSettle();
+      expect(find.text('Not signed in'), findsOneWidget);
+      api.setSignedIn(true);
+      await tester.pumpAndSettle();
+      expect(find.text('account@example.com'), findsOneWidget);
+      expect(find.text('Not signed in'), findsNothing);
+      expect(
+        find.text(
+          'Sign in using the Profile card above to manage groups and share alerts with your family.',
+        ),
+        findsNothing,
+      );
+      api.setSignedIn(false);
+      await tester.pumpAndSettle();
+      expect(find.text('Not signed in'), findsOneWidget);
+      expect(find.text('account@example.com'), findsNothing);
+      expect(find.text('Sign out of account'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'a delayed account response cannot restore signed-in UI after logout',
+    (tester) async {
+      final api = _SessionFamilyApi();
+      addTearDown(api.dispose);
+      await tester.pumpWidget(
+        MeditraceApp(
+          bleService: _FakeBleService(),
+          database: _MemoryLocalDatabase(),
+          familyApi: api,
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Profile'));
+      await tester.pumpAndSettle();
+      final pending = Completer<Map<String, dynamic>>();
+      api.pendingProfile = pending.future;
+      api.setSignedIn(true);
+      await tester.pump();
+      await tester.pump();
+      api.setSignedIn(false);
+      await tester.pumpAndSettle();
+      pending.complete(_SessionFamilyApi.profile);
+      await tester.pumpAndSettle();
+      expect(find.text('Not signed in'), findsOneWidget);
+      expect(find.text('account@example.com'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'local storage failure does not hide a successful Google sign-in',
+    (tester) async {
+      final api = _SessionFamilyApi();
+      addTearDown(api.dispose);
+      await tester.pumpWidget(
+        MeditraceApp(
+          bleService: _FakeBleService(),
+          database: _FailingProfileDatabase(),
+          familyApi: api,
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Profile'));
+      await tester.pumpAndSettle();
+      api.setSignedIn(true);
+      await tester.pumpAndSettle();
+      expect(find.text('account@example.com'), findsOneWidget);
+      expect(find.text('Sign out of account'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('startup welcome uses default English', (tester) async {
     await tester.pumpWidget(
       MeditraceApp(
@@ -859,4 +1042,51 @@ class _MemoryLocalDatabase extends LocalDatabase {
 
   @override
   Future<void> clearEvents() async => events.clear();
+}
+
+class _FailingProfileDatabase extends _MemoryLocalDatabase {
+  @override
+  Future<void> setSetting(String key, String value) async {
+    throw StateError('Local storage is unavailable');
+  }
+}
+
+class _SessionFamilyApi extends FamilyApi {
+  static const profile = <String, dynamic>{
+    'user': {
+      'id': 'account-user',
+      'name': 'Account User',
+      'email': 'account@example.com',
+    },
+  };
+  final _sessions = StreamController<String?>.broadcast();
+  bool _signedIn = false;
+  Future<Map<String, dynamic>>? pendingProfile;
+
+  void setSignedIn(bool value) {
+    _signedIn = value;
+    _sessions.add(value ? 'account-user' : null);
+  }
+
+  @override
+  Future<bool> get hasSession async => _signedIn;
+  @override
+  bool get backendConfigured => false;
+  @override
+  Stream<String?> get sessionUserIds => _sessions.stream;
+  @override
+  Stream<void> get foregroundNotifications => const Stream.empty();
+  @override
+  Future<Map<String, dynamic>> loginWithGoogle() async {
+    setSignedIn(true);
+    return profile;
+  }
+
+  @override
+  Future<Map<String, dynamic>> me() async =>
+      pendingProfile == null ? profile : await pendingProfile!;
+  @override
+  Future<Map<String, dynamic>> inbox() async => {'data': []};
+  @override
+  void dispose() => unawaited(_sessions.close());
 }

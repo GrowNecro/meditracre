@@ -1,142 +1,355 @@
-import '../../l10n/localization.dart';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../l10n/localization.dart';
+import '../../models/dose_event.dart';
 import '../../providers/app_provider.dart';
 import '../../services/family_api.dart';
 
 class HistoryScreen extends StatefulWidget {
-  const HistoryScreen({super.key});
+  const HistoryScreen({
+    super.key,
+    this.isActive = true,
+    this.onOpenProfile,
+    this.familyApi,
+  });
+
+  final bool isActive;
+  final VoidCallback? onOpenProfile;
+  final FamilyApi? familyApi;
 
   @override
   State<HistoryScreen> createState() => _HistoryScreenState();
 }
 
-class _HistoryScreenState extends State<HistoryScreen> {
-  late final _familyApi = FamilyApi(
-    languageCode: () => context.read<AppProvider>().languageCode,
-  );
+class _HistoryScreenState extends State<HistoryScreen>
+    with WidgetsBindingObserver {
+  late final _familyApi =
+      widget.familyApi ??
+      FamilyApi(languageCode: () => context.read<AppProvider>().languageCode);
+  StreamSubscription<String?>? _sessionSubscription;
+  StreamSubscription<void>? _notificationSubscription;
   List<dynamic> _familyAlerts = [];
+  final Set<String> _acknowledging = {};
+  int _loadGeneration = 0;
+  bool _loading = true;
+  bool _signedIn = false;
+  bool _loadFailed = false;
 
   @override
   void initState() {
     super.initState();
-    _loadFamilyAlerts();
+    WidgetsBinding.instance.addObserver(this);
+    _sessionSubscription = _familyApi.sessionUserIds.distinct().listen((_) {
+      unawaited(_loadFamilyAlerts(clear: true));
+    });
+    _notificationSubscription = _familyApi.foregroundNotifications.listen((_) {
+      unawaited(_loadFamilyAlerts());
+    });
+    unawaited(_loadFamilyAlerts());
+  }
+
+  @override
+  void didUpdateWidget(covariant HistoryScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isActive && !oldWidget.isActive) {
+      unawaited(_loadFamilyAlerts());
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && widget.isActive) {
+      unawaited(_loadFamilyAlerts());
+    }
   }
 
   @override
   void dispose() {
-    _familyApi.dispose();
+    WidgetsBinding.instance.removeObserver(this);
+    unawaited(_sessionSubscription?.cancel());
+    unawaited(_notificationSubscription?.cancel());
+    if (widget.familyApi == null) _familyApi.dispose();
     super.dispose();
   }
 
-  Future<void> _loadFamilyAlerts() async {
-    try {
-      if (!await _familyApi.hasSession || !_familyApi.backendConfigured) return;
-      final result = await _familyApi.inbox();
-      if (mounted) {
-        setState(() => _familyAlerts = result['data'] as List? ?? []);
+  Future<void> _loadFamilyAlerts({bool clear = false}) async {
+    final generation = ++_loadGeneration;
+    if (!mounted) return;
+    setState(() {
+      _loading = true;
+      _loadFailed = false;
+      if (clear) {
+        _familyAlerts = [];
+        _signedIn = false;
       }
+    });
+    try {
+      final signedIn = await _familyApi.hasSession;
+      final result = signedIn ? await _familyApi.inbox() : null;
+      if (!mounted || generation != _loadGeneration) return;
+      setState(() {
+        _signedIn = signedIn;
+        _familyAlerts = result?['data'] as List? ?? [];
+        _loading = false;
+      });
     } catch (_) {
-      // Riwayat lokal tetap tersedia jika inbox keluarga belum dapat dibaca.
+      if (!mounted || generation != _loadGeneration) return;
+      setState(() {
+        _loading = false;
+        _loadFailed = true;
+      });
     }
   }
 
   Future<void> _acknowledge(String alertId) async {
+    if (!_acknowledging.add(alertId)) return;
+    setState(() {});
+    final generation = _loadGeneration;
     try {
       await _familyApi.acknowledge(alertId);
+      if (!mounted || generation != _loadGeneration) return;
+      // Show the acknowledged status immediately, then confirm server state.
+      setState(() {
+        _familyAlerts = [
+          for (final raw in _familyAlerts)
+            if ((raw as Map)['id']?.toString() == alertId)
+              {...raw, 'acknowledged_at': DateTime.now().toIso8601String()}
+            else
+              raw,
+        ];
+      });
       await _loadFamilyAlerts();
     } catch (_) {
-      // The alert remains visible and can be acknowledged again later.
+      if (mounted && generation == _loadGeneration) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.l10n.alertAcknowledgeFailed)),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _acknowledging.remove(alertId));
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final app = context.watch<AppProvider>();
-    final preview = app.history.isEmpty;
-    final events = app.history;
+    final entries = <({DateTime time, DoseEvent? event, Map? alert})>[
+      for (final event in app.history)
+        (time: event.timestamp, event: event, alert: null),
+      for (final raw in _familyAlerts)
+        (
+          time:
+              DateTime.tryParse(
+                (raw as Map)['occurred_at']?.toString() ?? '',
+              ) ??
+              DateTime.fromMillisecondsSinceEpoch(0),
+          event: null,
+          alert: raw,
+        ),
+    ]..sort((a, b) => b.time.compareTo(a.time));
     return Scaffold(
       appBar: AppBar(
-        title: Text(context.l10n.history),
+        title: Text(context.l10n.activity),
         actions: [
           IconButton(
-            tooltip: context.l10n.clearLocalHistory,
-            onPressed: app.history.isEmpty
-                ? null
-                : () => _confirmClear(context, app),
-            icon: const Icon(Icons.delete_sweep_outlined),
+            tooltip: context.l10n.refreshFamilyNotifications,
+            onPressed: _loading ? null : _loadFamilyAlerts,
+            icon: const Icon(Icons.refresh),
+          ),
+          PopupMenuButton<String>(
+            onSelected: (_) => _confirmClear(context, app),
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: 'clear-history',
+                enabled: app.history.isNotEmpty,
+                child: Text(context.l10n.clearLocalHistory),
+              ),
+            ],
           ),
         ],
       ),
-      body: ListView(
+      body: Column(
         children: [
-          if (_familyAlerts.isNotEmpty || _familyApi.backendConfigured)
-            _FamilyAlertsSection(
-              alerts: _familyAlerts,
-              onAcknowledge: _acknowledge,
-            ),
-          if (preview)
+          if (_loading) const LinearProgressIndicator(minHeight: 2),
+          if (_loadFailed)
             Padding(
-              padding: const EdgeInsets.all(32),
-              child: Column(
-                children: [
-                  Icon(
-                    Icons.history_toggle_off,
-                    size: 64,
-                    color: Theme.of(context).colorScheme.primary,
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: Card(
+                margin: EdgeInsets.zero,
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        context.l10n.familyNotificationsLoadFailed,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      Text(context.l10n.familyNotificationsRetryDescription),
+                      TextButton.icon(
+                        onPressed: _loading ? null : _loadFamilyAlerts,
+                        icon: const Icon(Icons.refresh),
+                        label: Text(context.l10n.retry),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 12),
-                  Text(
-                    context.l10n.noHistoryYet,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    context.l10n.medicationAndDeviceActivityWillAppearHere,
-                    textAlign: TextAlign.center,
-                  ),
-                ],
+                ),
               ),
             ),
-          if (!preview)
-            ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(16),
-              itemCount: events.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 8),
-              itemBuilder: (context, index) {
-                final event = events[index];
-                final time = event.timestamp.toLocal();
-                final color = _eventColor(context, event.type);
-                return Card(
-                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 4,
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: _loadFamilyAlerts,
+              child: entries.isEmpty
+                  ? LayoutBuilder(
+                      builder: (context, constraints) => ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        children: [
+                          SizedBox(
+                            height: constraints.maxHeight,
+                            child: _ActivityEmptyState(
+                              icon: Icons.notifications_none_outlined,
+                              title: context.l10n.noActivityYet,
+                              description: _signedIn
+                                  ? context.l10n.activityEmptyDescription
+                                  : context.l10n.activityGuestDescription,
+                              action:
+                                  !_signedIn &&
+                                      !_loading &&
+                                      !_loadFailed &&
+                                      widget.onOpenProfile != null
+                                  ? FilledButton.tonalIcon(
+                                      onPressed: widget.onOpenProfile,
+                                      icon: const Icon(Icons.person_outline),
+                                      label: Text(context.l10n.openProfile),
+                                    )
+                                  : null,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : ListView.separated(
+                      key: const PageStorageKey('activity-feed'),
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.all(16),
+                      itemCount: entries.length,
+                      separatorBuilder: (_, _) => const SizedBox(height: 10),
+                      itemBuilder: (context, index) {
+                        final item = entries[index];
+                        return item.event != null
+                            ? _buildHistoryEvent(item.event!)
+                            : _buildFamilyAlert(item.alert!);
+                      },
                     ),
-                    leading: CircleAvatar(
-                      backgroundColor: color.withValues(alpha: 0.14),
-                      foregroundColor: color,
-                      child: Icon(_eventIcon(event.type)),
-                    ),
-                    title: Text(
-                      _eventTitle(event.type, event.state, event.status),
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    subtitle: Text(
-                      '${time.day.toString().padLeft(2, '0')}/${time.month.toString().padLeft(2, '0')}/${time.year} '
-                      '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}'
-                      '${event.sensorId == null ? '' : context.l10n.compartment2((event.sensorId).toString())}',
-                    ),
-                  ),
-                );
-              },
             ),
+          ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildHistoryEvent(DoseEvent event) {
+    final color = _eventColor(context, event.type);
+    return Card(
+      margin: EdgeInsets.zero,
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        leading: CircleAvatar(
+          backgroundColor: color.withValues(alpha: 0.12),
+          foregroundColor: color,
+          child: Icon(_eventIcon(event.type)),
+        ),
+        title: Text(
+          _eventTitle(event.type, event.state, event.status),
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+        subtitle: Text(
+          '${context.l10n.localActivity}\n'
+          '${_formatTimestamp(context, event.timestamp)}'
+          '${event.sensorId == null ? '' : context.l10n.compartment2('${event.sensorId}')}',
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFamilyAlert(Map item) {
+    final alertId = item['id']?.toString();
+    final pending = item['acknowledged_at'] == null;
+    final busy = _acknowledging.contains(alertId);
+    final scheme = Theme.of(context).colorScheme;
+    final time = DateTime.tryParse(item['occurred_at']?.toString() ?? '');
+    return Card(
+      margin: EdgeInsets.zero,
+      color: pending ? scheme.primaryContainer.withValues(alpha: 0.4) : null,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  pending
+                      ? Icons.notifications_active_outlined
+                      : Icons.task_alt,
+                  color: pending ? scheme.primary : scheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    item['title']?.toString() ?? context.l10n.familyAlert,
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              '${context.l10n.family} · ${item['group_name'] ?? context.l10n.familyAlert}',
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            if (item['sender_email'] != null)
+              Text(item['sender_email'].toString()),
+            if (time != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                _formatTimestamp(context, time),
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 12,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text(
+                  pending
+                      ? context.l10n.alertNeedsAttention
+                      : context.l10n.alertHandled,
+                  style: TextStyle(
+                    color: pending ? scheme.primary : scheme.onSurfaceVariant,
+                  ),
+                ),
+                if (pending && alertId != null)
+                  TextButton.icon(
+                    onPressed: busy ? null : () => _acknowledge(alertId),
+                    icon: busy
+                        ? const SizedBox.square(
+                            dimension: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.done),
+                    label: Text(context.l10n.acknowledge),
+                  ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -231,54 +444,60 @@ class _HistoryScreenState extends State<HistoryScreen> {
   };
 }
 
-class _FamilyAlertsSection extends StatelessWidget {
-  const _FamilyAlertsSection({
-    required this.alerts,
-    required this.onAcknowledge,
-  });
+String _formatTimestamp(BuildContext context, DateTime value) {
+  final time = value.toLocal();
+  final localizations = MaterialLocalizations.of(context);
+  return '${localizations.formatShortDate(time)} · '
+      '${localizations.formatTimeOfDay(TimeOfDay.fromDateTime(time), alwaysUse24HourFormat: MediaQuery.alwaysUse24HourFormatOf(context))}';
+}
 
-  final List<dynamic> alerts;
-  final Future<void> Function(String) onAcknowledge;
+class _ActivityEmptyState extends StatelessWidget {
+  const _ActivityEmptyState({
+    required this.icon,
+    required this.title,
+    required this.description,
+    this.action,
+  });
+  final IconData icon;
+  final String title;
+  final String description;
+  final Widget? action;
 
   @override
-  Widget build(BuildContext context) => Card(
-    margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-    child: Column(
-      children: [
-        ListTile(
-          leading: Icon(Icons.notifications_active_outlined),
-          title: Text(context.l10n.familyNotifications),
-          subtitle: Text(context.l10n.alertsForCaregiversAndFamilyMembers),
-        ),
-        if (alerts.isEmpty)
-          ListTile(
-            title: Text(context.l10n.noFamilyNotificationsYet),
-            contentPadding: EdgeInsets.fromLTRB(16, 0, 16, 12),
+  Widget build(BuildContext context) => Center(
+    child: SingleChildScrollView(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CircleAvatar(
+            radius: 36,
+            backgroundColor: Theme.of(context)
+                .colorScheme
+                .surfaceContainerHighest,
+            child: Icon(
+              icon,
+              size: 34,
+              color: Theme.of(context).colorScheme.primary,
+            ),
           ),
-        for (final rawAlert in alerts)
-          Builder(
-            builder: (context) {
-              final item = rawAlert as Map;
-              final alertId = item['id']?.toString();
-              return ListTile(
-                title: Text(
-                  item['title']?.toString() ?? context.l10n.familyAlert,
-                ),
-                subtitle: Text(
-                  '${item['group_name'] ?? context.l10n.family} · '
-                  '${item['sender_email'] ?? context.l10n.senderEmailUnavailable} · '
-                  '${item['occurred_at'] ?? '-'}',
-                ),
-                trailing: item['acknowledged_at'] == null && alertId != null
-                    ? TextButton(
-                        onPressed: () => onAcknowledge(alertId),
-                        child: Text(context.l10n.acknowledge),
-                      )
-                    : const Icon(Icons.check_circle_outline),
-              );
-            },
+          const SizedBox(height: 20),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.titleMedium,
           ),
-      ],
+          const SizedBox(height: 8),
+          Text(
+            description,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+          if (action != null) ...[const SizedBox(height: 20), action!],
+        ],
+      ),
     ),
   );
 }

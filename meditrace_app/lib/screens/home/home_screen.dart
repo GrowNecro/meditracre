@@ -7,6 +7,7 @@ import '../../models/device_info.dart';
 import '../../providers/app_provider.dart';
 import '../../providers/ble_provider.dart';
 import '../../services/ble_service.dart';
+import '../../services/family_api.dart';
 import '../device/device_screen.dart';
 import '../device/scan_screen.dart';
 import '../history/history_screen.dart';
@@ -19,12 +20,16 @@ class HomeScreen extends StatefulWidget {
     super.key,
     this.selectedIndex = 0,
     this.inviteCode,
+    this.inviteRequestId = 0,
     this.onInviteConsumed,
+    this.familyApi,
   });
 
   final int selectedIndex;
   final String? inviteCode;
+  final int inviteRequestId;
   final VoidCallback? onInviteConsumed;
+  final FamilyApi? familyApi;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -42,7 +47,11 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void didUpdateWidget(covariant HomeScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.selectedIndex != oldWidget.selectedIndex) {
+    if (widget.inviteCode != null &&
+        (widget.inviteCode != oldWidget.inviteCode ||
+            widget.inviteRequestId != oldWidget.inviteRequestId)) {
+      setState(() => _index = 4);
+    } else if (widget.selectedIndex != oldWidget.selectedIndex) {
       setState(() => _index = widget.selectedIndex);
     }
   }
@@ -97,11 +106,19 @@ class _HomeScreenState extends State<HomeScreen> {
       children: [
         _buildTabContent(0, const _Dashboard()),
         _buildTabContent(1, const MedicationScreen()),
-        _buildTabContent(2, const HistoryScreen()),
+        _buildTabContent(
+          2,
+          HistoryScreen(
+            familyApi: widget.familyApi,
+            isActive: _index == 2,
+            onOpenProfile: () => setState(() => _index = 4),
+          ),
+        ),
         _buildTabContent(3, const DeviceScreen(embedded: true)),
         _buildTabContent(
           4,
           MoreScreen(
+            familyApi: widget.familyApi,
             inviteCode: widget.inviteCode,
             onInviteConsumed: widget.onInviteConsumed,
           ),
@@ -123,9 +140,9 @@ class _HomeScreenState extends State<HomeScreen> {
           label: context.l10n.schedule,
         ),
         NavigationDestination(
-          icon: Icon(Icons.history_outlined),
-          selectedIcon: Icon(Icons.history),
-          label: context.l10n.history,
+          icon: Icon(Icons.notifications_none_outlined),
+          selectedIcon: Icon(Icons.notifications),
+          label: context.l10n.activity,
         ),
         NavigationDestination(
           icon: Icon(Icons.developer_board_outlined),

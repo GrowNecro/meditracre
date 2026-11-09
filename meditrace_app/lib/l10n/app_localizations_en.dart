@@ -1012,4 +1012,59 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get languageSaveFailed =>
       'Could not save language preference. Try again.';
+
+  @override
+  String get activity => 'Activity';
+
+  @override
+  String get openProfile => 'Open profile';
+
+  @override
+  String get familyNotificationsLoadFailed =>
+      'Could not load family notifications';
+
+  @override
+  String get familyNotificationsRetryDescription =>
+      'Check your connection and try again. Your local history is still available.';
+
+  @override
+  String get retry => 'Try again';
+
+  @override
+  String get refreshFamilyNotifications => 'Refresh family notifications';
+
+  @override
+  String get alertNeedsAttention => 'Needs attention';
+
+  @override
+  String get alertHandled => 'Handled';
+
+  @override
+  String get alertAcknowledgeFailed =>
+      'Could not acknowledge this alert. Please try again.';
+
+  @override
+  String get noActivityYet => 'No activity yet';
+
+  @override
+  String get activityEmptyDescription =>
+      'Medication history, device events, and family notifications will appear here.';
+
+  @override
+  String get activityGuestDescription =>
+      'Medication and device activity will appear here. Sign in from your profile to also receive family notifications.';
+
+  @override
+  String get localActivity => 'Device & medication';
+
+  @override
+  String get invitationAccepted => 'You have joined the family group.';
+
+  @override
+  String get invitationReviewDescription =>
+      'Accept this invitation to join the family group. The code can only be used once.';
+
+  @override
+  String get invitationSignInDescription =>
+      'Sign in using the profile card above, then accept this invitation. Your code will stay here.';
 }

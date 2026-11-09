@@ -8,7 +8,7 @@ compatibility_date = "2025-10-01"
 
 [vars]
 EMAIL_FROM = "MEDITRACE <noreply@meditrace.grownecro.tech>"
-ANDROID_SHA256_CERT_FINGERPRINTS = "38:41:FC:6E:BD:EC:F5:F2:C2:8C:7E:71:64:25:E9:0F:3D:FA:DD:65:ED:4F:76:78:C0:8D:38:B7:20:FF:5F:1F"
+ANDROID_SHA256_CERT_FINGERPRINTS = "38:41:FC:6E:BD:EC:F5:F2:C2:8C:7E:71:64:25:E9:0F:3D:FA:DD:65:ED:4F:76:78:C0:8D:38:B7:20:FF:5F:1F,FE:B8:C1:10:63:A4:28:D3:71:43:97:9C:2B:65:CE:86:B4:FB:B4:BD:E2:B3:CA:CD:DB:C2:98:AD:6B:72:D5:ED"
 
 [observability]
 logs = { enabled = true, head_sampling_rate = 1, invocation_logs = true, persist = true }

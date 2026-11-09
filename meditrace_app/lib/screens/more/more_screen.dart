@@ -1,5 +1,7 @@
 import '../../l10n/localization.dart';
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -10,19 +12,29 @@ import '../../services/app_update_service.dart';
 import 'family_screen.dart';
 
 class MoreScreen extends StatefulWidget {
-  const MoreScreen({super.key, this.inviteCode, this.onInviteConsumed});
+  const MoreScreen({
+    super.key,
+    this.inviteCode,
+    this.onInviteConsumed,
+    this.familyApi,
+  });
 
   final String? inviteCode;
   final VoidCallback? onInviteConsumed;
+  final FamilyApi? familyApi;
 
   @override
   State<MoreScreen> createState() => _MoreScreenState();
 }
 
 class _MoreScreenState extends State<MoreScreen> {
-  late final _api = FamilyApi(
-    languageCode: () => context.read<AppProvider>().languageCode,
-  );
+  late final _api =
+      widget.familyApi ??
+      FamilyApi(languageCode: () => context.read<AppProvider>().languageCode);
+  StreamSubscription<String?>? _sessionSubscription;
+  int _accountGeneration = 0;
+  bool _authActionBusy = false;
+  bool get _accountBusy => _checkingAccount || _authActionBusy;
   bool _checkingAccount = true;
   bool _signedIn = false;
   String? _accountEmail;
@@ -32,112 +44,89 @@ class _MoreScreenState extends State<MoreScreen> {
   @override
   void initState() {
     super.initState();
-    _loadAccount();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final code = widget.inviteCode;
-      if (code != null) {
-        _showInvite(code);
-      }
+    _sessionSubscription = _api.sessionUserIds.distinct().listen((_) {
+      unawaited(_loadAccount());
     });
-  }
-
-  Future<void> _showInvite(String code) async {
-    if (!mounted) return;
-    await showDialog<void>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(context.l10n.familyInvitation),
-        content: Text(
-          context.l10n.invitationCodeIsReadyToUse((code).toString()),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: Text(context.l10n.later),
-          ),
-          FilledButton(
-            onPressed: () {
-              Navigator.pop(dialogContext);
-              _showFamilyJoin(code);
-            },
-            child: Text(context.l10n.joinNow),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showFamilyJoin(String code) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          context.l10n.enterCodeInTheFamilySection((code).toString()),
-        ),
-      ),
-    );
+    _loadAccount();
   }
 
   @override
   void dispose() {
-    _api.dispose();
+    unawaited(_sessionSubscription?.cancel());
+    if (widget.familyApi == null) _api.dispose();
     super.dispose();
   }
 
   Future<void> _loadAccount() async {
+    if (!mounted) return;
+    final generation = ++_accountGeneration;
     final app = context.read<AppProvider>();
-    try {
-      if (await _api.hasSession) {
-        final result = await _api.me();
-        final user = result['user'] as Map;
-        final accountName = user['name']?.toString();
-        if (accountName != null && accountName.isNotEmpty) {
-          await app.updateProfile(name: accountName, family: app.familyName);
-        }
-        if (mounted) {
-          setState(() {
-            _signedIn = true;
-            _accountName = accountName;
-            _accountEmail = user['email']?.toString();
-          });
-        }
-      }
-    } catch (error) {
-      if (mounted) setState(() => _accountError = error.toString());
-    } finally {
-      if (mounted) setState(() => _checkingAccount = false);
-    }
-  }
-
-  Future<void> _signIn(AppProvider app) async {
     setState(() {
       _checkingAccount = true;
       _accountError = null;
     });
     try {
-      final result = await _api.loginWithGoogle();
-      final user = result['user'] as Map;
-      final name = user['name']?.toString();
-      if (name != null && name.isNotEmpty) {
-        await app.updateProfile(name: name, family: app.familyName);
-      }
-
-      if (mounted) {
+      if (await _api.hasSession) {
+        final result = await _api.me();
+        if (!mounted || generation != _accountGeneration) return;
+        final user = result['user'] as Map;
+        final accountName = user['name']?.toString();
         setState(() {
           _signedIn = true;
-          _accountName = name;
+          _accountName = accountName;
           _accountEmail = user['email']?.toString();
+        });
+        if (accountName != null &&
+            accountName.isNotEmpty &&
+            accountName != app.patientName) {
+          try {
+            await app.updateProfile(
+              name: accountName,
+              family: app.familyName,
+              age: app.patientAge,
+              emergencyPhone: app.emergencyPhone,
+              emergencyEmail: app.emergencyEmail,
+            );
+          } catch (_) {
+            // Local profile persistence must not hide a valid Firebase session.
+          }
+        }
+      } else if (mounted && generation == _accountGeneration) {
+        setState(() {
+          _signedIn = false;
+          _accountName = null;
+          _accountEmail = null;
         });
       }
     } catch (error) {
+      if (mounted && generation == _accountGeneration) {
+        setState(() => _accountError = error.toString());
+      }
+    } finally {
+      if (mounted && generation == _accountGeneration) {
+        setState(() => _checkingAccount = false);
+      }
+    }
+  }
+
+  Future<void> _signIn() async {
+    setState(() {
+      _authActionBusy = true;
+      _accountError = null;
+    });
+    try {
+      await _api.loginWithGoogle();
+      await _loadAccount();
+    } catch (error) {
       if (mounted) setState(() => _accountError = error.toString());
     } finally {
-      if (mounted) setState(() => _checkingAccount = false);
+      if (mounted) setState(() => _authActionBusy = false);
     }
   }
 
   Future<void> _signOut(AppProvider app) async {
     setState(() {
-      _checkingAccount = true;
+      _authActionBusy = true;
       _accountError = null;
     });
     try {
@@ -153,7 +142,7 @@ class _MoreScreenState extends State<MoreScreen> {
     } catch (error) {
       if (mounted) setState(() => _accountError = error.toString());
     } finally {
-      if (mounted) setState(() => _checkingAccount = false);
+      if (mounted) setState(() => _authActionBusy = false);
     }
   }
 
@@ -246,14 +235,14 @@ class _MoreScreenState extends State<MoreScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: FilledButton.icon(
-                        onPressed: _checkingAccount ? null : () => _signIn(app),
+                        onPressed: _accountBusy ? null : _signIn,
                         icon: const Icon(Icons.login),
                         label: Text(context.l10n.signInWithGoogle),
                       ),
                     )
                   else
                     TextButton(
-                      onPressed: _checkingAccount ? null : () => _signOut(app),
+                      onPressed: _accountBusy ? null : () => _signOut(app),
                       child: Text(context.l10n.signOutOfAccount),
                     ),
                 ],
@@ -324,7 +313,8 @@ class _MoreScreenState extends State<MoreScreen> {
                   ),
                 ),
                 FamilyScreen(
-                  key: ValueKey('${_signedIn}_${widget.inviteCode}'),
+                  familyApi: _api,
+                  key: const ValueKey('profile-family-section'),
                   embedded: true,
                   initialInviteCode: widget.inviteCode,
                   onInviteConsumed: widget.onInviteConsumed,

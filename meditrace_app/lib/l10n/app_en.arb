@@ -538,5 +538,21 @@
   "onlineFirmwareEmpty": "The online firmware file is empty.",
   "invalidEsp32Firmware": "The file is not valid ESP32 firmware; update canceled.",
   "language": "Language",
-  "languageSaveFailed": "Could not save language preference. Try again."
+  "languageSaveFailed": "Could not save language preference. Try again.",
+  "activity": "Activity",
+  "openProfile": "Open profile",
+  "familyNotificationsLoadFailed": "Could not load family notifications",
+  "familyNotificationsRetryDescription": "Check your connection and try again. Your local history is still available.",
+  "retry": "Try again",
+  "refreshFamilyNotifications": "Refresh family notifications",
+  "alertNeedsAttention": "Needs attention",
+  "alertHandled": "Handled",
+  "alertAcknowledgeFailed": "Could not acknowledge this alert. Please try again.",
+  "noActivityYet": "No activity yet",
+  "activityEmptyDescription": "Medication history, device events, and family notifications will appear here.",
+  "activityGuestDescription": "Medication and device activity will appear here. Sign in from your profile to also receive family notifications.",
+  "localActivity": "Device & medication",
+  "invitationAccepted": "You have joined the family group.",
+  "invitationReviewDescription": "Accept this invitation to join the family group. The code can only be used once.",
+  "invitationSignInDescription": "Sign in using the profile card above, then accept this invitation. Your code will stay here."
 }

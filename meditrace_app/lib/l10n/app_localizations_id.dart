@@ -1011,4 +1011,59 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get languageSaveFailed => 'Gagal menyimpan pilihan bahasa. Coba lagi.';
+
+  @override
+  String get activity => 'Aktivitas';
+
+  @override
+  String get openProfile => 'Buka profil';
+
+  @override
+  String get familyNotificationsLoadFailed =>
+      'Pemberitahuan keluarga belum dapat dimuat';
+
+  @override
+  String get familyNotificationsRetryDescription =>
+      'Periksa koneksi lalu coba lagi. Riwayat lokal tetap tersedia.';
+
+  @override
+  String get retry => 'Coba lagi';
+
+  @override
+  String get refreshFamilyNotifications => 'Segarkan pemberitahuan keluarga';
+
+  @override
+  String get alertNeedsAttention => 'Perlu ditangani';
+
+  @override
+  String get alertHandled => 'Sudah ditangani';
+
+  @override
+  String get alertAcknowledgeFailed =>
+      'Peringatan belum berhasil ditangani. Silakan coba lagi.';
+
+  @override
+  String get noActivityYet => 'Belum ada aktivitas';
+
+  @override
+  String get activityEmptyDescription =>
+      'Riwayat obat, aktivitas perangkat, dan pemberitahuan keluarga akan muncul di sini.';
+
+  @override
+  String get activityGuestDescription =>
+      'Aktivitas obat dan perangkat akan muncul di sini. Masuk melalui profil untuk menerima pemberitahuan keluarga juga.';
+
+  @override
+  String get localActivity => 'Perangkat & obat';
+
+  @override
+  String get invitationAccepted => 'Anda berhasil bergabung ke grup keluarga.';
+
+  @override
+  String get invitationReviewDescription =>
+      'Terima undangan ini untuk bergabung ke grup keluarga. Kode hanya dapat digunakan sekali.';
+
+  @override
+  String get invitationSignInDescription =>
+      'Masuk melalui kartu profil di atas, lalu terima undangan ini. Kode Anda tetap tersimpan di sini.';
 }

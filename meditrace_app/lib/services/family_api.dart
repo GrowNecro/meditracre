@@ -37,6 +37,14 @@ class FamilyApi {
   Future<bool> get hasSession async =>
       _configured && FirebaseAuth.instance.currentUser != null;
 
+  Stream<String?> get sessionUserIds => _configured
+      ? FirebaseAuth.instance.authStateChanges().map((user) => user?.uid)
+      : const Stream.empty();
+
+  Stream<void> get foregroundNotifications => _configured
+      ? FirebaseMessaging.onMessage.map((_) {})
+      : const Stream.empty();
+
   Future<Map<String, dynamic>> loginWithGoogle() async {
     _requireConfigured();
     if (_googleWebClientId.isEmpty) {

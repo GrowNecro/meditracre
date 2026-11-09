@@ -1843,6 +1843,102 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Could not save language preference. Try again.'**
   String get languageSaveFailed;
+
+  /// No description provided for @activity.
+  ///
+  /// In en, this message translates to:
+  /// **'Activity'**
+  String get activity;
+
+  /// No description provided for @openProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Open profile'**
+  String get openProfile;
+
+  /// No description provided for @familyNotificationsLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load family notifications'**
+  String get familyNotificationsLoadFailed;
+
+  /// No description provided for @familyNotificationsRetryDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Check your connection and try again. Your local history is still available.'**
+  String get familyNotificationsRetryDescription;
+
+  /// No description provided for @retry.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get retry;
+
+  /// No description provided for @refreshFamilyNotifications.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh family notifications'**
+  String get refreshFamilyNotifications;
+
+  /// No description provided for @alertNeedsAttention.
+  ///
+  /// In en, this message translates to:
+  /// **'Needs attention'**
+  String get alertNeedsAttention;
+
+  /// No description provided for @alertHandled.
+  ///
+  /// In en, this message translates to:
+  /// **'Handled'**
+  String get alertHandled;
+
+  /// No description provided for @alertAcknowledgeFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not acknowledge this alert. Please try again.'**
+  String get alertAcknowledgeFailed;
+
+  /// No description provided for @noActivityYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No activity yet'**
+  String get noActivityYet;
+
+  /// No description provided for @activityEmptyDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Medication history, device events, and family notifications will appear here.'**
+  String get activityEmptyDescription;
+
+  /// No description provided for @activityGuestDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Medication and device activity will appear here. Sign in from your profile to also receive family notifications.'**
+  String get activityGuestDescription;
+
+  /// No description provided for @localActivity.
+  ///
+  /// In en, this message translates to:
+  /// **'Device & medication'**
+  String get localActivity;
+
+  /// No description provided for @invitationAccepted.
+  ///
+  /// In en, this message translates to:
+  /// **'You have joined the family group.'**
+  String get invitationAccepted;
+
+  /// No description provided for @invitationReviewDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Accept this invitation to join the family group. The code can only be used once.'**
+  String get invitationReviewDescription;
+
+  /// No description provided for @invitationSignInDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in using the profile card above, then accept this invitation. Your code will stay here.'**
+  String get invitationSignInDescription;
 }
 
 class _AppLocalizationsDelegate

@@ -1,5 +1,7 @@
 // MEDITRACE Cloudflare Worker. Secrets: FIREBASE_PROJECT_ID,
 // FIREBASE_SERVICE_ACCOUNT, RESEND_API_KEY. Variable: EMAIL_FROM.
+import {createInvitationCode, normalizeInvitationCode} from './invitations.js';
+
 const b64 = (value) => btoa(String.fromCharCode(...new Uint8Array(value)))
   .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
 const enc = new TextEncoder();
@@ -191,8 +193,13 @@ const cleanText = (value, field, maxLength = 160) => {
   if (typeof value !== 'string' || !value.trim()) throw new Error(`${field} wajib diisi.`);
   return value.trim().slice(0, maxLength);
 };
-const createCode = () => Array.from(crypto.getRandomValues(new Uint8Array(9)))
-  .map((byte) => (byte % 36).toString(36)).join('').toUpperCase();
+function invitationCode(value) {
+  try {
+    return normalizeInvitationCode(value);
+  } catch (_) {
+    throw json({error: 'Kode undangan tidak valid.'}, 400);
+  }
+}
 
 async function groupForMember(env, groupId, uid) {
   if (!Number.isSafeInteger(groupId) || groupId < 1) throw new Error('ID grup tidak valid.');
@@ -272,7 +279,7 @@ async function createInvitation(env, user, data) {
   const role = data.role === 'caregiver' ? 'caregiver' : 'member';
   const group = await groupForMember(env, groupId, user.sub);
   if (group.ownerUid !== user.sub) throw new Error('Hanya pemilik grup yang dapat mengundang anggota.');
-  const code = createCode();
+  const code = createInvitationCode();
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
   await firestore(env, `invitations/${code}`, {
     method: 'PATCH',
@@ -290,7 +297,7 @@ async function createInvitation(env, user, data) {
 async function sendInvitationEmail(env, user, data) {
   const email = cleanText(data.email, 'Email penerima');
   if (!email.includes('@') || email.includes(' ')) throw new Error('Email tidak valid.');
-  const code = cleanText(data.code, 'Kode undangan');
+  const code = invitationCode(data.code);
   const groupName = cleanText(data.groupName || 'keluarga MEDITRACE', 'Nama grup');
   const group = await groupForMember(env, Number(data.groupId), user.sub);
   if (group.ownerUid !== user.sub) throw new Error('Hanya pemilik grup yang dapat mengundang anggota.');
@@ -298,13 +305,13 @@ async function sendInvitationEmail(env, user, data) {
     env,
     email,
     'Undangan keluarga',
-    `Anda diundang bergabung ke grup ${escapeHtml(groupName)}. Buka https://meditrace.grownecro.tech/invite/${escapeHtml(code)} untuk membuka aplikasi MEDITRACE. Kode undangan: ${escapeHtml(code)}. Kode berlaku 7 hari dan hanya bisa dipakai sekali.`,
+    `Anda diundang bergabung ke grup ${escapeHtml(groupName)}. <a href="https://meditrace.grownecro.tech/invite/${code}">Buka aplikasi MEDITRACE dan terima undangan</a>. Kode undangan: ${code}. Kode berlaku 7 hari dan hanya bisa dipakai sekali.`,
   );
   return {ok: true};
 }
 
 async function joinFamily(env, user, data) {
-  const code = cleanText(data.code, 'Kode undangan', 20).toUpperCase();
+  const code = invitationCode(data.code);
   const invitation = await firestoreGet(env, `invitations/${code}`, {optional: true});
   if (!invitation || invitation.data.used || new Date(invitation.data.expiresAt).getTime() < Date.now()) {
     throw new Error('Kode undangan tidak valid atau sudah kedaluwarsa.');
@@ -493,8 +500,60 @@ async function sendFcm(env, token, title, details) {
   if (!res.ok) throw new Error('FCM menolak notifikasi');
 }
 
+function invitationPage(request, code) {
+  const indonesian = /^id\b/i.test(request.headers.get('accept-language') || '');
+  const text = indonesian ? {
+    title: 'Undangan keluarga',
+    body: 'Buka MEDITRACE untuk menerima undangan dan bergabung ke grup keluarga.',
+    open: 'Buka aplikasi MEDITRACE',
+    download: 'Unduh aplikasi Android',
+    code: 'Kode undangan',
+    hint: 'Jika aplikasi belum terpasang, instal terlebih dahulu. Setelah masuk, buka Profil → Keluarga → Masukkan kode undangan dan gunakan kode ini.',
+    expiry: 'Kode berlaku 7 hari dan hanya bisa dipakai sekali. Undangan akan diperiksa saat Anda menerima di aplikasi.',
+  } : {
+    title: 'Family invitation',
+    body: 'Open MEDITRACE to accept this invitation and join your family group.',
+    open: 'Open MEDITRACE app',
+    download: 'Download Android app',
+    code: 'Invitation code',
+    hint: 'If the app is not installed, install it first. After signing in, open Profile → Family → Enter invitation code and use this code.',
+    expiry: 'Codes are valid for 7 days and can only be used once. Your invitation will be checked when you accept it in the app.',
+  };
+  const fallback = encodeURIComponent(`https://meditrace.grownecro.tech/invite/${code}`);
+  const intent = `intent://meditrace.grownecro.tech/invite/${code}#Intent;scheme=https;package=com.example.meditrace;S.browser_fallback_url=${fallback};end`;
+  return new Response(`<!doctype html>
+<html lang="${indonesian ? 'id' : 'en'}"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>${text.title} · MEDITRACE</title>
+<style>
+*{box-sizing:border-box}body{margin:0;padding:32px 20px;background:#f2fffe;color:#123b3c;font:16px/1.6 system-ui,sans-serif;min-height:100vh;display:grid;place-items:center}
+main{width:100%;max-width:480px;background:white;border:1px solid #d5efec;border-radius:24px;padding:32px;box-shadow:0 12px 40px #075e630d}
+.brand{font-weight:700;color:#087e83;letter-spacing:.08em;font-size:13px}h1{font-size:28px;line-height:1.2;margin:18px 0}p{color:#486869}
+a{display:block;border-radius:12px;padding:12px 16px;text-decoration:none;text-align:center;font-weight:600;margin:12px 0;background:#087e83;color:white}
+a.secondary{background:#e7fffd;color:#075e63}code{display:block;background:#f2fffe;border-radius:12px;padding:12px;overflow-wrap:anywhere;font-size:17px;user-select:all}
+label{display:block;font-weight:600;margin:24px 0 8px}small{display:block;color:#557373;margin-top:20px}
+</style></head><body><main>
+<div class="brand">MEDITRACE</div><h1>${text.title}</h1><p>${text.body}</p>
+<a href="${intent}">${text.open}</a>
+<a class="secondary" href="https://github.com/GrowNecro/meditracre/releases/latest/download/meditrace.apk">${text.download}</a>
+<label>${text.code}</label><code>${code}</code><p>${text.hint}</p><small>${text.expiry}</small>
+</main></body></html>`, {
+    headers: {
+      'content-type': 'text/html; charset=utf-8',
+      'cache-control': 'no-store',
+      'referrer-policy': 'no-referrer',
+      'x-content-type-options': 'nosniff',
+      'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'",
+    },
+  });
+}
+
 export default { async fetch(request, env) {
   const url = new URL(request.url);
+  const invitation = /^\/invite\/([0-9a-f]{24}|[0-9a-z]{9})\/?$/i.exec(url.pathname);
+  if (request.method === 'GET' && invitation) {
+    return invitationPage(request, invitation[1].toUpperCase());
+  }
   if (request.method === 'GET' && url.pathname === '/.well-known/assetlinks.json') {
     const fingerprints = (env.ANDROID_SHA256_CERT_FINGERPRINTS || '')
       .split(',')

@@ -48,12 +48,43 @@ npx wrangler secret put RESEND_API_KEY
 - `POST /v1/sendInvitationEmail` — mengirim kode undangan melalui Resend.
 - `GET /.well-known/assetlinks.json` — konfigurasi Android App Links dari
   `ANDROID_SHA256_CERT_FINGERPRINTS`.
+- `GET /invite/<kode>` — halaman undangan dengan tombol membuka aplikasi,
+  unduhan APK, dan kode untuk dimasukkan manual jika aplikasi belum terpasang.
 - `POST /v1/registerDevice`, `/v1/unregisterDevice` — token perangkat untuk
   notifikasi.
 - `POST /v1/sendAlert`, `/v1/acknowledgeAlert` — peringatan anggota keluarga.
 
 Seluruh endpoint `POST /v1/*` membutuhkan Firebase ID token; Worker memeriksa
 token sebelum membaca atau menulis data Firestore.
+
+## Tautan undangan Android
+
+`ANDROID_SHA256_CERT_FINGERPRINTS` harus mencakup sertifikat debug lokal dan
+release tetap yang menandatangani APK GitHub. SHA release saat ini berawalan
+`FE:B8:C1:10`; nilai lengkap tersimpan pada `wrangler.toml`. Perubahan fingerprint
+Firebase tidak otomatis memperbarui konfigurasi domain App Links.
+
+Undangan baru memakai 24 karakter heksadesimal. Undangan lama dengan sembilan
+karakter alfanumerik tetap didukung sampai kedaluwarsa. Kode tidak dipotong saat
+diterima backend. Halaman browser hanya menampilkan kode dan membuka aplikasi;
+kunjungan browser atau pemindai tautan email tidak mengonsumsi undangan.
+
+Di aplikasi, tautan membuka Profil dengan kartu undangan. Pengguna masuk bila
+diperlukan, lalu menekan **Gabung sekarang**. Undangan tetap tersimpan ketika
+login dan baru ditandai selesai setelah backend menerima penggabungan grup.
+
+Validasi dan deploy sambil mempertahankan variable/secrets produksi lain:
+
+```powershell
+npm test
+npm run check -- --keep-vars
+npm run deploy -- --keep-vars
+```
+
+Setelah memperbarui aplikasi, izinkan **Open supported links / Buka tautan yang
+didukung** pada pengaturan Android untuk MEDITRACE. Perubahan manifest dan
+penanganan tautan di Flutter memerlukan APK baru; perubahan Worker saja tidak
+mengganti kode APK yang sudah terpasang.
 
 Peringatan `separation_escalation` dan `medbox_left_behind` dikirim melalui
 FCM dan email ke anggota grup selain pengirim jika profil mereka memiliki email.

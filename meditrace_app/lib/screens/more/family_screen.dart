@@ -15,20 +15,24 @@ class FamilyScreen extends StatefulWidget {
     this.embedded = false,
     this.initialInviteCode,
     this.onInviteConsumed,
+    this.familyApi,
   });
 
   final bool embedded;
   final String? initialInviteCode;
   final VoidCallback? onInviteConsumed;
+  final FamilyApi? familyApi;
 
   @override
   State<FamilyScreen> createState() => _FamilyScreenState();
 }
 
 class _FamilyScreenState extends State<FamilyScreen> {
-  late final _api = FamilyApi(
-    languageCode: () => context.read<AppProvider>().languageCode,
-  );
+  late final _api =
+      widget.familyApi ??
+      FamilyApi(languageCode: () => context.read<AppProvider>().languageCode);
+  StreamSubscription<String?>? _sessionSubscription;
+  int _refreshGeneration = 0;
   bool _busy = true;
   bool _signedIn = false;
   String? _error;
@@ -43,44 +47,78 @@ class _FamilyScreenState extends State<FamilyScreen> {
   void initState() {
     super.initState();
     _pendingInviteCode = widget.initialInviteCode;
+    _sessionSubscription = _api.sessionUserIds.distinct().listen((_) {
+      if (!mounted) return;
+      setState(() {
+        _families = [];
+        _name = '';
+        _userId = null;
+        _activeGroupId = null;
+      });
+      unawaited(_initialize());
+    });
     unawaited(_initialize());
   }
 
   Future<void> _initialize() async {
     await _refresh();
-    await _consumePendingInvite();
   }
 
-  Future<void> _consumePendingInvite() async {
+  @override
+  void didUpdateWidget(covariant FamilyScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialInviteCode != oldWidget.initialInviteCode &&
+        widget.initialInviteCode != null) {
+      setState(() => _pendingInviteCode = widget.initialInviteCode);
+    }
+  }
+
+  Future<void> _acceptPendingInvite() async {
     final code = _pendingInviteCode;
-    if (!mounted ||
-        code == null ||
+    if (code == null ||
         !_signedIn ||
         !_api.backendConfigured ||
         _joiningInvite) {
       return;
     }
-    _joiningInvite = true;
-    _pendingInviteCode = null;
+    setState(() {
+      _joiningInvite = true;
+      _busy = true;
+      _error = null;
+    });
     try {
-      await _run(() => _api.joinFamily(code));
-      if (_error == null) {
+      await _api.joinFamily(code);
+      if (!mounted) return;
+      if (_pendingInviteCode == code) {
+        setState(() => _pendingInviteCode = null);
         widget.onInviteConsumed?.call();
-      } else {
-        _pendingInviteCode = code;
       }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(context.l10n.invitationAccepted)));
+      await _refresh(showLoading: false);
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString());
     } finally {
-      _joiningInvite = false;
+      if (mounted) {
+        setState(() {
+          _joiningInvite = false;
+          _busy = false;
+        });
+      }
     }
   }
 
   @override
   void dispose() {
-    _api.dispose();
+    unawaited(_sessionSubscription?.cancel());
+    if (widget.familyApi == null) _api.dispose();
     super.dispose();
   }
 
   Future<void> _refresh({bool showLoading = true}) async {
+    if (!mounted) return;
+    final generation = ++_refreshGeneration;
     final relay = context.read<AppProvider>().familyAlerts;
     setState(() {
       if (showLoading) _busy = true;
@@ -88,11 +126,21 @@ class _FamilyScreenState extends State<FamilyScreen> {
     });
     try {
       if (!await _api.hasSession) {
-        if (mounted) setState(() => _signedIn = false);
+        if (mounted && generation == _refreshGeneration) {
+          setState(() {
+            _signedIn = false;
+            _families = [];
+            _userId = null;
+            _name = '';
+            _activeGroupId = null;
+          });
+        }
         return;
       }
+      if (!mounted || generation != _refreshGeneration) return;
       if (mounted) setState(() => _signedIn = true);
       final me = await _api.me();
+      if (!mounted || generation != _refreshGeneration) return;
       if (!_api.backendConfigured) {
         if (mounted) {
           setState(() {
@@ -104,7 +152,9 @@ class _FamilyScreenState extends State<FamilyScreen> {
         return;
       }
       await _api.refreshPushRegistration();
+      if (!mounted || generation != _refreshGeneration) return;
       final families = await _api.families();
+      if (!mounted || generation != _refreshGeneration) return;
       final ownerId = (me['user'] as Map)['id'] as String;
       final ownedGroups = (families['groups'] as List? ?? [])
           .where((item) => (item as Map)['owner_id'] == ownerId)
@@ -116,7 +166,7 @@ class _FamilyScreenState extends State<FamilyScreen> {
           _groupId(ownedGroups.isNotEmpty ? ownedGroups.first : groups.first),
         );
       }
-      if (!mounted) return;
+      if (!mounted || generation != _refreshGeneration) return;
       setState(() {
         _signedIn = true;
         _name = (me['user'] as Map)['name'].toString();
@@ -125,13 +175,15 @@ class _FamilyScreenState extends State<FamilyScreen> {
         _activeGroupId = relay.groupId;
       });
     } catch (error) {
-      if (mounted) {
+      if (mounted && generation == _refreshGeneration) {
         setState(() {
           _error = error.toString();
         });
       }
     } finally {
-      if (mounted && showLoading) setState(() => _busy = false);
+      if (mounted && showLoading && generation == _refreshGeneration) {
+        setState(() => _busy = false);
+      }
     }
   }
 
@@ -174,7 +226,6 @@ class _FamilyScreenState extends State<FamilyScreen> {
     try {
       await action();
       await _refresh(showLoading: false);
-      await _consumePendingInvite();
     } catch (error) {
       if (mounted) {
         setState(() => _error = error.toString());
@@ -377,6 +428,54 @@ class _FamilyScreenState extends State<FamilyScreen> {
               style: TextStyle(color: Theme.of(context).colorScheme.error),
             ),
           ),
+        if (_pendingInviteCode != null) ...[
+          Card(
+            margin: const EdgeInsets.symmetric(vertical: 12),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    context.l10n.familyInvitation,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  SelectableText(_pendingInviteCode!),
+                  const SizedBox(height: 8),
+                  Text(
+                    _signedIn
+                        ? context.l10n.invitationReviewDescription
+                        : context.l10n.invitationSignInDescription,
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      FilledButton.icon(
+                        onPressed:
+                            _busy || !_signedIn || !_api.backendConfigured
+                            ? null
+                            : _acceptPendingInvite,
+                        icon: const Icon(Icons.group_add_outlined),
+                        label: Text(context.l10n.joinNow),
+                      ),
+                      TextButton(
+                        onPressed: _joiningInvite
+                            ? null
+                            : () {
+                                setState(() => _pendingInviteCode = null);
+                                widget.onInviteConsumed?.call();
+                              },
+                        child: Text(context.l10n.later),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
         if (!_signedIn) ...[
           Text(context.l10n.signInUsingTheProfileCardAboveTo),
           if (!widget.embedded) ...[

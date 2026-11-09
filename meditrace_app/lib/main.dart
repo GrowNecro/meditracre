@@ -12,6 +12,7 @@ import 'providers/ble_provider.dart';
 import 'screens/home/home_screen.dart';
 import 'services/ble_service.dart';
 import 'services/family_api.dart';
+import 'services/invitation_link.dart';
 import 'services/flutter_blue_ble_service.dart';
 import 'services/local_database.dart';
 
@@ -37,11 +38,13 @@ class MeditraceApp extends StatefulWidget {
     super.key,
     this.bleService,
     this.database,
+    this.familyApi,
     this.showStartupSplash = false,
   });
 
   final BleService? bleService;
   final LocalDatabase? database;
+  final FamilyApi? familyApi;
   final bool showStartupSplash;
 
   @override
@@ -52,10 +55,12 @@ class _MeditraceAppState extends State<MeditraceApp>
     with WidgetsBindingObserver {
   late final AppProvider _app;
   late final BleProvider _ble;
+  late final FamilyApi _familyApi;
   final _appLinks = AppLinks();
   final _navigatorKey = GlobalKey<NavigatorState>();
   StreamSubscription<Uri>? _linkSubscription;
   String? _inviteCode;
+  int _inviteRequestId = 0;
   int _homeTab = 0;
   bool _isReady = false;
   bool _entryPromptShown = false;
@@ -65,6 +70,8 @@ class _MeditraceAppState extends State<MeditraceApp>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _app = AppProvider(database: widget.database);
+    _familyApi =
+        widget.familyApi ?? FamilyApi(languageCode: () => _app.languageCode);
     _ble = BleProvider(widget.bleService ?? FlutterBlueBleService(), _app);
     _linkSubscription = _appLinks.uriLinkStream.listen(_handleLink);
     unawaited(_readInitialLink());
@@ -81,16 +88,12 @@ class _MeditraceAppState extends State<MeditraceApp>
   }
 
   void _handleLink(Uri uri) {
-    final segments = uri.pathSegments;
-    if (uri.host != 'meditrace.grownecro.tech' ||
-        segments.length != 2 ||
-        segments.first != 'invite' ||
-        !RegExp(r'^[0-9A-Fa-f]{24}$').hasMatch(segments.last)) {
-      return;
-    }
+    final code = InvitationLink.codeFromUri(uri);
+    if (code == null) return;
     if (mounted) {
       setState(() {
-        _inviteCode = segments.last.toUpperCase();
+        _inviteCode = code;
+        _inviteRequestId++;
         _homeTab = 4;
       });
     }
@@ -122,7 +125,7 @@ class _MeditraceAppState extends State<MeditraceApp>
   }
 
   Future<void> _showEntryChoice() async {
-    final api = FamilyApi(languageCode: () => _app.languageCode);
+    final api = _familyApi;
     if (_entryPromptShown || !mounted || await api.hasSession) return;
     if (!mounted) return;
     final navigatorContext = _navigatorKey.currentContext;
@@ -154,6 +157,7 @@ class _MeditraceAppState extends State<MeditraceApp>
     unawaited(_linkSubscription?.cancel());
     _ble.dispose();
     _app.dispose();
+    if (widget.familyApi == null) _familyApi.dispose();
     super.dispose();
   }
 
@@ -226,7 +230,9 @@ class _MeditraceAppState extends State<MeditraceApp>
               ? HomeScreen(
                   key: const ValueKey('home'),
                   selectedIndex: _homeTab,
+                  familyApi: _familyApi,
                   inviteCode: _inviteCode,
+                  inviteRequestId: _inviteRequestId,
                   onInviteConsumed: () => setState(() => _inviteCode = null),
                 )
               : const _SplashScreen(key: ValueKey('splash')),
